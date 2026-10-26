@@ -1,26 +1,4 @@
 [
-  {"family": "Jacket Sans", "file": "JacketSans-LightItalic.otf", "weight": "300", "style": "italic"},
-  {"family": "Jacket Sans", "file": "JacketSans-Light.otf", "weight": "300", "style": "normal"},
-  {"family": "Jacket Sans", "file": "JacketSans-Italic.otf", "weight": "400", "style": "italic"},
-  {"family": "Jacket Sans", "file": "JacketSans-Regular.otf", "weight": "400", "style": "normal"},
-  {"family": "Jacket Sans", "file": "JacketSans-MediumItalic.otf", "weight": "500", "style": "italic"},
-  {"family": "Jacket Sans", "file": "JacketSans-Medium.otf", "weight": "500", "style": "normal"},
-  {"family": "Jacket Sans", "file": "JacketSans-SemiBoldItalic.otf", "weight": "600", "style": "italic"},
-  {"family": "Jacket Sans", "file": "JacketSans-SemiBold.otf", "weight": "600", "style": "normal"},
-  {"family": "Jacket Sans", "file": "JacketSans-BoldItalic.otf", "weight": "700", "style": "italic"},
-  {"family": "Jacket Sans", "file": "JacketSans-Bold.otf", "weight": "700", "style": "normal"},
-  {"family": "Jacket Sans", "file": "JacketSans-ExtraBoldItalic.otf", "weight": "800", "style": "italic"},
-  {"family": "Jacket Sans", "file": "JacketSans-ExtraBold.otf", "weight": "800", "style": "normal"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-LightItalic.otf", "weight": "300", "style": "italic"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-Light.otf", "weight": "300", "style": "normal"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-Italic.otf", "weight": "400", "style": "italic"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-Regular.otf", "weight": "400", "style": "normal"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-MediumItalic.otf", "weight": "500", "style": "italic"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-Medium.otf", "weight": "500", "style": "normal"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-SemiBoldItalic.otf", "weight": "600", "style": "italic"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-SemiBold.otf", "weight": "600", "style": "normal"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-BoldItalic.otf", "weight": "700", "style": "italic"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-Bold.otf", "weight": "700", "style": "normal"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-ExtraBoldItalic.otf", "weight": "800", "style": "italic"},
-  {"family": "Jacket Sans Display", "file": "JacketSansDisplay-ExtraBold.otf", "weight": "800", "style": "normal"}
+  {"family": "Jacket Sans", "file": "JacketSansVariable.woff2", "weight": "400 800", "style": "normal"},
+  {"family": "Jacket Sans", "file": "JacketSansVariable-Italic.woff2", "weight": "400 800", "style": "italic"}
 ]

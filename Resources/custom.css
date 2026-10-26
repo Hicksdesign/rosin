@@ -17,7 +17,9 @@
  * Register font files in Resources/Fonts/fonts.json, then use the family
  * name here. System-installed fonts can also be referenced by name.
  *
- * Registered: "Jacket Sans" and "Jacket Sans Display", 300–800, roman + italic.
+ * Registered: "Jacket Sans" variable, roman + italic, wght 400–800 (no Light).
+ * Its opsz axis (14–32) is the Display cut; font-optical-sizing: auto (the
+ * default) moves large text towards Display without any extra CSS.
  *
  * Qobuz's icons are an icon font set via icon-* and pct classes, so those
  * elements are skipped; otherwise the icons would render as letters.
