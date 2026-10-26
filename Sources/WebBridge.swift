@@ -31,6 +31,20 @@ final class WebBridge: NSObject, WKScriptMessageHandler {
         }
     }
 
+    /// Height of the hidden title bar the page sits under, exposed to CSS as
+    /// --qobuz-shell-titlebar-height. Set before the first load so it's in the
+    /// user script; later changes (full screen) go straight to the page.
+    var titlebarHeight: CGFloat = 0 {
+        didSet {
+            guard titlebarHeight != oldValue else { return }
+            evaluate(titlebarHeightJS)
+        }
+    }
+
+    private var titlebarHeightJS: String {
+        "window.QobuzShell && QobuzShell.setTitlebarHeight(\(Int(titlebarHeight)));"
+    }
+
     // MARK: Setup
 
     func install(into controller: WKUserContentController) {
@@ -56,10 +70,11 @@ final class WebBridge: NSObject, WKScriptMessageHandler {
 
     private func addUserScript(to controller: WKUserContentController) {
         // inject.js runs at document start so it can wrap mediaSession and
-        // HTMLMediaElement before Qobuz's own code touches them. The styles call is
-        // appended to the same script so it always runs after QobuzShell exists.
+        // HTMLMediaElement before Qobuz's own code touches them. The styles and
+        // title bar calls are appended so they always run after QobuzShell exists.
         let source = UserStyles.injectScript()
             + "\nwindow.QobuzShell && QobuzShell.applyStyles(\(UserStyles.stylesArgumentsJS()));"
+            + "\n" + titlebarHeightJS
         controller.addUserScript(WKUserScript(
             source: source,
             injectionTime: .atDocumentStart,

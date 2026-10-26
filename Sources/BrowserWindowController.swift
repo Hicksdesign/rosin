@@ -10,9 +10,16 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSMen
 
     let webView: WKWebView
     let bridge: WebBridge
+    private let dragView: TitlebarDragView
+
+    /// Height of a standard title bar. The window hides its title bar and lets
+    /// the page run underneath, so this strip is what custom.css pads around.
+    private static let titlebarHeight =
+        NSWindow.frameRect(forContentRect: .zero, styleMask: [.titled]).height
 
     init() {
         let bridge = WebBridge()
+        bridge.titlebarHeight = Self.titlebarHeight  // before install, so it's in the user script
 
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()                 // persistent cookies, so you stay signed in
@@ -27,19 +34,35 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSMen
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        window.title = "Qobuz"
+        window.title = "Qobuz"  // not shown, but still used by the Window menu and Mission Control
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 900, height: 600)
         window.isReleasedWhenClosed = false
-        window.contentView = webView
+
+        // The web view takes every click, including in the area a title bar
+        // would cover, so an invisible strip on top restores window dragging.
+        let container = NSView()
+        webView.frame = container.bounds
+        webView.autoresizingMask = [.width, .height]
+        container.addSubview(webView)
+        let dragView = TitlebarDragView(frame: NSRect(
+            x: 0, y: container.bounds.height - Self.titlebarHeight,
+            width: container.bounds.width, height: Self.titlebarHeight
+        ))
+        dragView.autoresizingMask = [.width, .minYMargin]
+        container.addSubview(dragView, positioned: .above, relativeTo: webView)
+        window.contentView = container
         window.center()
         window.setFrameAutosaveName("QobuzShellMainWindow")
 
         self.webView = webView
         self.bridge = bridge
+        self.dragView = dragView
         super.init(window: window)
 
         window.delegate = self
@@ -58,6 +81,18 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSMen
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         sender.orderOut(nil)  // hide rather than close; audio keeps playing
         return false
+    }
+
+    // In full screen the traffic lights are hidden and the window can't be
+    // dragged, so drop the strip and tell the page there's nothing to pad.
+    func windowWillEnterFullScreen(_ notification: Notification) {
+        dragView.isHidden = true
+        bridge.titlebarHeight = 0
+    }
+
+    func windowWillExitFullScreen(_ notification: Notification) {
+        dragView.isHidden = false
+        bridge.titlebarHeight = Self.titlebarHeight
     }
 
     // MARK: Menu actions (wired up in MainMenu)
@@ -141,5 +176,27 @@ extension BrowserWindowController: WKUIDelegate {
             NSWorkspace.shared.open(url)
         }
         return nil
+    }
+}
+
+// MARK: - Title bar drag area
+
+/// Stands in for the hidden title bar: dragging moves the window, and a
+/// double-click does whatever System Settings ▸ Desktop & Dock says
+/// ("Double-click a window's title bar to…").
+private final class TitlebarDragView: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let window else { return }
+        if event.clickCount == 2 {
+            switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
+            case "Minimize": window.performMiniaturize(nil)
+            case "None": break
+            default: window.performZoom(nil)  // "Maximize", or unset
+            }
+        } else {
+            window.performDrag(with: event)
+        }
     }
 }

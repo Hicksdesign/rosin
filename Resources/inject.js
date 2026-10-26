@@ -299,8 +299,20 @@
   const markRoot = () => document.documentElement && document.documentElement.classList.add('qobuz-shell');
   markRoot() || document.addEventListener('DOMContentLoaded', markRoot, { once: true });
 
+  // The window has no visible title bar, so the page runs up under the traffic
+  // lights. Swift reports the height of that strip (0 in full screen) as
+  // --qobuz-shell-titlebar-height for custom.css to pad around.
+  let titlebarHeight = 0;
+  const applyTitlebarHeight = () => document.documentElement &&
+    document.documentElement.style.setProperty('--qobuz-shell-titlebar-height', `${titlebarHeight}px`);
+  const setTitlebarHeight = (px) => {
+    titlebarHeight = px;
+    applyTitlebarHeight();
+  };
+  document.addEventListener('DOMContentLoaded', applyTitlebarHeight, { once: true });
+
   window.QobuzShell = {
-    togglePlay, next, previous, closeImmersive, openSearch, applyStyles,
+    togglePlay, next, previous, closeImmersive, openSearch, applyStyles, setTitlebarHeight,
     state: readState,
     handlers: () => Object.keys(actionHandlers),
     selectors: SELECTORS,
