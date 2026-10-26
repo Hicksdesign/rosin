@@ -4,39 +4,41 @@
 // current track back to Swift via webkit.messageHandlers.qobuzShell.
 //
 // Debug it in Safari ▸ Develop ▸ [your Mac] ▸ QobuzShell. In the console,
-// `QobuzShell.state()` shows what the menubar will see, and
+// `QobuzShell.state()` shows what the menubar will see,
+// `QobuzShell.handlers()` lists the Media Session actions Qobuz registered, and
 // `QobuzShell.selectors` lists the selectors in use.
 
 (() => {
   if (window.QobuzShell) return;
 
   // ---------------------------------------------------------------------------
-  // SELECTORS — PLACEHOLDERS. These have not been checked against the live
-  // Qobuz DOM. Verify each one in the Web Inspector and replace as needed.
-  // Prefer aria-labels, data-* attributes and roles over generated class names,
-  // which change whenever Qobuz redeploys.
+  // SELECTORS. Qobuz uses readable BEM class names (FullPlayer__close,
+  // SearchBar__input) rather than generated hashes, so those are the primary
+  // hooks. Its aria-labels are localised, so they're only a secondary match.
   //
-  // Playback and track info don't depend on these if Qobuz uses the Media
-  // Session API (see below); they're only the fallback.
+  // Qobuz registers Media Session handlers for play, pause, nexttrack and
+  // previoustrack, and sets mediaSession.metadata, so the player-bar entries
+  // are only a fallback. They're still unverified placeholders.
   // ---------------------------------------------------------------------------
   const SELECTORS = {
-    // Fallback track metadata (player bar)
+    // Fallback track metadata (player bar) — unverified
     playerTitle: '[data-testid="player-track-title"]',
     playerArtist: '[data-testid="player-track-artist"]',
     playerAlbum: '[data-testid="player-track-album"]',
     playerArtwork: '[data-testid="player-cover"] img',
 
-    // Fallback playback buttons
+    // Fallback playback buttons — unverified
     playPauseButton: 'button[aria-label="Play"], button[aria-label="Pause"]',
     nextButton: 'button[aria-label="Next"]',
     previousButton: 'button[aria-label="Previous"]',
 
-    // Immersive / full-screen player
-    immersiveRoot: '[class*="immersive" i]',
-    immersiveClose: '[class*="immersive" i] button[aria-label*="close" i]',
+    // Immersive view ("FullPlayer" in Qobuz's markup)
+    immersiveRoot: '[class*="FullPlayer"]',
+    immersiveClose: 'button.FullPlayer__close, button[aria-label="Close fullscreen"]',
 
-    // Search
-    searchInput: 'input[type="search"], input[placeholder*="search" i]',
+    // Search. The input is always in the nav bar, so searchTrigger and
+    // SEARCH_ROUTE should rarely be needed; neither has been verified.
+    searchInput: 'input.SearchBar__input',
     searchTrigger: 'button[aria-label*="search" i], a[href*="/search"]',
   };
 
@@ -205,11 +207,22 @@
     sendEscape();
   };
 
+  const focusInput = (input) => {
+    input.focus();
+    input.select?.();
+  };
+
   const focusSearch = () => {
     const input = $(SELECTORS.searchInput);
     if (!isVisible(input)) return false;
-    input.focus();
-    input.select?.();
+    focusInput(input);
+    // On Discover, focusing the field opens a search-history panel that
+    // re-renders the search bar and drops focus. Once it settles, refocus
+    // whichever input is there now.
+    setTimeout(() => {
+      const current = $(SELECTORS.searchInput);
+      if (isVisible(current) && document.activeElement !== current) focusInput(current);
+    }, 100);
     return true;
   };
 
@@ -289,6 +302,7 @@
   window.QobuzShell = {
     togglePlay, next, previous, closeImmersive, openSearch, applyStyles,
     state: readState,
+    handlers: () => Object.keys(actionHandlers),
     selectors: SELECTORS,
   };
 })();
