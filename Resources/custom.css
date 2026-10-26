@@ -16,16 +16,15 @@
 /* ---- Fonts ---------------------------------------------------------------
  * Register font files in Resources/Fonts/fonts.json, then use the family
  * name here. System-installed fonts can also be referenced by name.
+ *
+ * Registered: "Jacket Sans" and "Jacket Sans Display", 300–800, roman + italic.
+ *
+ * Qobuz's icons are an icon font set via icon-* and pct classes, so those
+ * elements are skipped; otherwise the icons would render as letters.
  */
-/*
-html.qobuz-shell,
-html.qobuz-shell body,
-html.qobuz-shell button,
-html.qobuz-shell input {
-  font-family: "Your Family", -apple-system, BlinkMacSystemFont, sans-serif !important;
-  font-feature-settings: "tnum" 1, "cv11" 1;
+html.qobuz-shell *:not([class*="icon-"]):not([class*="pct"]) {
+  font-family: "Jacket Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
-*/
 
 /* ---- Hide sections you don't use (example) ------------------------------ */
 /*
