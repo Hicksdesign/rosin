@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	The app is deliberately NOT sandboxed. That lets Debug builds read
+	custom.css, inject.js and fonts straight from the project folder, and
+	lets any build read overrides from ~/Library/Application Support/QobuzShell/.
+	If you ever sandbox it, add com.apple.security.network.client (WKWebView
+	needs it) and the Debug source-folder lookup in UserStyles will stop working.
+	-->
+</dict>
+</plist>

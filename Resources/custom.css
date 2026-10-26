@@ -1,0 +1,35 @@
+/*
+ * QobuzShell custom styles.
+ *
+ * Applied to every page load. Edit, then ⌘⇧R (View ▸ Reload Custom CSS) to see
+ * changes without rebuilding — in Debug builds this file is read straight from
+ * the project folder.
+ *
+ * To override without rebuilding a Release build, put a custom.css in
+ * ~/Library/Application Support/QobuzShell/ — it takes priority over this one.
+ *
+ * Everything is scoped under html.qobuz-shell, which the injected script adds.
+ * Selectors below are examples only — check the real ones in the Web Inspector
+ * (Safari ▸ Develop ▸ [your Mac] ▸ QobuzShell).
+ */
+
+/* ---- Fonts ---------------------------------------------------------------
+ * Register font files in Resources/Fonts/fonts.json, then use the family
+ * name here. System-installed fonts can also be referenced by name.
+ */
+/*
+html.qobuz-shell,
+html.qobuz-shell body,
+html.qobuz-shell button,
+html.qobuz-shell input {
+  font-family: "Your Family", -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+*/
+
+/* ---- Hide sections you don't use (example) ------------------------------ */
+/*
+html.qobuz-shell a[href*="/magazine"] {
+  display: none !important;
+}
+*/
