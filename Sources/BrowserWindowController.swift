@@ -113,6 +113,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSMen
 
     @objc func openSearch(_ sender: Any?) { bridge.call("openSearch") }
     @objc func closeImmersive(_ sender: Any?) { bridge.call("closeImmersive") }
+    @objc func toggleOpenImmersiveOnPlay(_ sender: Any?) { bridge.opensImmersiveOnPlay.toggle() }
     @objc func togglePlayPause(_ sender: Any?) { bridge.call("togglePlay") }
     @objc func nextTrack(_ sender: Any?) { bridge.call("next") }
     @objc func previousTrack(_ sender: Any?) { bridge.call("previous") }
@@ -121,6 +122,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSMen
         switch menuItem.action {
         case #selector(goBack(_:)): return webView.canGoBack
         case #selector(goForward(_:)): return webView.canGoForward
+        case #selector(toggleOpenImmersiveOnPlay(_:)):
+            menuItem.state = bridge.opensImmersiveOnPlay ? .on : .off
+            return true
         default: return true
         }
     }

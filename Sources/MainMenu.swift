@@ -52,6 +52,8 @@ enum MainMenu {
         // immersive view if it's open, and otherwise passes Escape on to the
         // page so Qobuz's own Escape handling still works.
         menu.addItem(item("Close Immersive View", #selector(BrowserWindowController.closeImmersive(_:)), "\u{1b}", [], target: b))
+        // A setting rather than an action: the checkmark shows whether it's on.
+        menu.addItem(item("Open Immersive View on Play", #selector(BrowserWindowController.toggleOpenImmersiveOnPlay(_:)), "", target: b))
         menu.addItem(.separator())
         menu.addItem(item("Reload Page", #selector(BrowserWindowController.reloadPage(_:)), "r", target: b))
         menu.addItem(item("Reload Custom CSS", #selector(BrowserWindowController.reloadCustomStyles(_:)), "r", [.command, .shift], target: b))

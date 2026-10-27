@@ -34,6 +34,9 @@
 
     // Immersive view ("FullPlayer" in Qobuz's markup)
     immersiveRoot: '[class*="FullPlayer"]',
+    // Player-bar cover (role="button"). Not its .pct-fullscreen_open icon: that
+    // only shows on hover, so it fails the visibility check in click().
+    immersiveOpen: '.player__track-cover',
     immersiveClose: 'button.FullPlayer__close, button[aria-label="Close fullscreen"]',
 
     // Search. The input is always in the nav bar, so searchTrigger and
@@ -123,6 +126,22 @@
   };
 
   // ---------------------------------------------------------------------------
+  // View ▸ Open Immersive View on Play. Only a start from paused/stopped counts
+  // as pressing play: if audio was progressing in the last 1.5s, the play event
+  // is a track change (auto-advance, Next, another album mid-play) and is
+  // ignored, so closing the immersive view sticks until playback stops.
+  let openImmersiveOnPlay = false;
+  let lastProgressAt = 0;
+  const noteProgress = (event) => {
+    if (!event.target.paused) lastProgressAt = Date.now();
+  };
+  const openImmersiveIfStarting = () => {
+    if (!openImmersiveOnPlay || Date.now() - lastProgressAt < 1500) return;
+    if (isVisible($(SELECTORS.immersiveRoot))) return;
+    click(SELECTORS.immersiveOpen) || log('openImmersiveOnPlay: open button not found');
+  };
+
+  // ---------------------------------------------------------------------------
   // Media element capture
   //
   // The audio element may never be attached to the DOM, so querySelector('audio')
@@ -135,6 +154,8 @@
     ['play', 'playing', 'pause', 'ended', 'emptied', 'loadedmetadata'].forEach((ev) =>
       el.addEventListener(ev, schedule)
     );
+    el.addEventListener('timeupdate', noteProgress);
+    el.addEventListener('play', openImmersiveIfStarting);
   };
   const originalPlay = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function (...args) {
@@ -328,6 +349,7 @@
 
   window.QobuzShell = {
     togglePlay, next, previous, closeImmersive, openSearch, applyStyles, setTitlebarHeight,
+    setOpenImmersiveOnPlay: (on) => { openImmersiveOnPlay = !!on; },
     state: readState,
     handlers: () => Object.keys(actionHandlers),
     selectors: SELECTORS,

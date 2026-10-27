@@ -45,6 +45,20 @@ final class WebBridge: NSObject, WKScriptMessageHandler {
         "window.QobuzShell && QobuzShell.setTitlebarHeight(\(Int(titlebarHeight)));"
     }
 
+    /// View ▸ Open Immersive View on Play. Saved in UserDefaults; included in the
+    /// user script so it applies from the first load.
+    private static let openImmersiveOnPlayKey = "openImmersiveOnPlay"
+    var opensImmersiveOnPlay = UserDefaults.standard.bool(forKey: openImmersiveOnPlayKey) {
+        didSet {
+            UserDefaults.standard.set(opensImmersiveOnPlay, forKey: Self.openImmersiveOnPlayKey)
+            evaluate(opensImmersiveOnPlayJS)
+        }
+    }
+
+    private var opensImmersiveOnPlayJS: String {
+        "window.QobuzShell && QobuzShell.setOpenImmersiveOnPlay(\(opensImmersiveOnPlay));"
+    }
+
     // MARK: Setup
 
     func install(into controller: WKUserContentController) {
@@ -75,6 +89,7 @@ final class WebBridge: NSObject, WKScriptMessageHandler {
         let source = UserStyles.injectScript()
             + "\nwindow.QobuzShell && QobuzShell.applyStyles(\(UserStyles.stylesArgumentsJS()));"
             + "\n" + titlebarHeightJS
+            + "\n" + opensImmersiveOnPlayJS
         controller.addUserScript(WKUserScript(
             source: source,
             injectionTime: .atDocumentStart,
