@@ -83,6 +83,11 @@ Gotchas found so far:
   rules must exclude them or the icons render as letters.
 - On Discover, focusing search opens a history panel that re-renders the bar and
   drops focus; `focusSearch` refocuses after 100ms.
+- With the system output set to AirPlay, 192 kHz streams stall (spinner, time
+  resets to 0:00) in WebKit, Safari included; 96 kHz plays. Local playback uses
+  MSE, and Firefox resamples in its own stack so it doesn't hit this. Keep Qobuz's
+  quality at 96 kHz. The `file/url` API calls are signed, so the format can't be
+  rewritten in flight.
 - Debug builds read `inject.js`, `custom.css` and fonts from the source tree:
   ⌘R reloads the page with fresh scripts, ⌘⇧R re-applies CSS and fonts.
 
