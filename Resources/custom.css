@@ -28,9 +28,124 @@ html.qobuz-shell *:not([class*="icon-"]):not([class*="pct"]) {
   font-family: "Jacket Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
-/* ---- Hide sections you don't use (example) ------------------------------ */
-/*
-html.qobuz-shell a[href*="/magazine"] {
+/* Qobuz Theme by Hicks.design */
+/* Version 1.5 for Qobuz Beta  */
+
+:root {
+  --new-accent: hsl(35, 90%, 60%);
+  --token-text-accent: var(--new-accent);
+  --fullscreen: 73dvh;
+  --component-height: 36px;
+  --container-desktop-large: 100%;
+}
+
+h1, h2, h3,
+.BigStoryCard__title,
+.PageHeader__title,
+.StoryCard__title,
+.StoryHeading__title {
+  font-weight: 700;
+  line-height: 1.1;
+  font-variation-settings: "opsz" 32;
+}
+
+h1,
+h1.PageHeader__title {
+  letter-spacing: -0.03rem !important;
+  overflow: unset;
+}
+
+/* now playing track title */
+.StoryHeading__title {
+  max-inline-size: 30ch !important;
+  -webkit-box-orient: unset !important;
+  -webkit-line-clamp: unset !important;
+  display: unset !important;
+  text-overflow: unset !important;
+  white-space: unset !important;
+  box-sizing: unset !important;
+  overflow: unset !important;
+}
+
+.BigStoryCard__label,
+.StoryCard__label,
+.StoryHeading__label {
+  letter-spacing: 0.1rem;
+  font-weight: 600;
+}
+
+/* Qobuz sans has a lighter appearance compared to most fonts */
+/* So other fonts appear too heavy */
+/* Take those heavier weights down a tad */
+.StoryContainer__text {
+  font-weight: 350;
+}
+
+/* restrict width of large text blocks, such as bios */
+.text-primary,
+.PageHeader__description,
+.header-page__artist-bio,
+.popin-description__text {
+  max-width: 60ch;
+  line-height: 1.66 !important;
+}
+
+/* lets stop those numbers jumping about */
+.player__track-time-content {
+  font-variant-numeric: tabular-nums;
+  font-variant-alternates: character-variant(cv09);
+}
+
+/* Hide UI some elements */
+/* Playlist icon in add to playlist modal */
+/* Distracting yellow hi-res label */
+/* Autoplay toggle in fullscreen player */
+/* Logo in fullscreen player */
+/* Border in top nav */
+/* Sticky Headers */
+.album-card__hires,
+.after\:bg-separator-dark-exclusive::after,
+.global__button--add-to-playlist:before,
+.FullPlayer__nav,
+.FullPlayer__autoplay,
+.FullPlayer__logo,
+.icon-brand-medium:before,
+.HeaderSticky,
+.popover > .arrow,
+.PlaylistPage .StickyHeader,
+.ReleasePage .StickyHeader {
   display: none !important;
 }
-*/
+
+/* Fullscreen player tweaks */
+.FullPlayer__title {
+  font-size: 18px;
+  padding-top: 18px;
+}
+
+.FullPlayer__album {
+  font-size: 16px;
+}
+
+.FullPlayer__track {
+  width: var(--fullscreen);
+  margin-left: 32px;
+}
+
+.FullPlayer__cover {
+  max-width: var(--fullscreen);
+  max-height: var(--fullscreen);
+  margin: unset;
+}
+
+.FullPlayer__close {
+  font-size: 24px;
+}
+
+.FullPlayer__background--isLoaded:after {
+  mix-blend-mode: multiply;
+}
+
+.Playqueue__list {
+  padding-block-end: 70px;
+}
