@@ -46,6 +46,21 @@
   const SEARCH_ROUTE = '/search';
 
   // ---------------------------------------------------------------------------
+  // Quality cap
+  //
+  // WebKit's MSE supports neither raw FLAC nor FLAC-in-MP4, so FLAC qualities
+  // stall. Qobuz caps real Safari at MP3 320, but detects Safari through
+  // window.safari.pushNotification, which a WKWebView lacks. This stub passes
+  // that check so Qobuz applies the same cap. It has no permission() method, so
+  // Qobuz's push-notification code still sees push as unavailable.
+  // ---------------------------------------------------------------------------
+  if (!window.safari) {
+    window.safari = {
+      pushNotification: { toString: () => '[object SafariRemoteNotification]' },
+    };
+  }
+
+  // ---------------------------------------------------------------------------
   // Messaging
   // ---------------------------------------------------------------------------
   const post = (msg) => {

@@ -72,6 +72,23 @@ Done:
 4. CSS and font injection get past the CSP.
 5. Title bar hidden; window drags from the top strip.
 
+In progress:
+
+- **View ▸ Open Immersive View on Play** (setting saved in UserDefaults, passed
+  to the page like the title bar height). Works, but only with "Default audio
+  output": it triggers on the local media element's `play` event, and with a
+  Qobuz Connect output (speaker or another web player, often used for hi-res)
+  the audio plays elsewhere, so there is no local element. Next step: trigger
+  from the player bar's play/pause button state instead. Its selector isn't
+  known yet; find it by dumping `[class*="player__"]` elements with
+  aria-labels / `icon-play` / `icon-pause` / `pct-p*` classes, both while
+  playing and while paused on a Connect output, and comparing.
+  `QobuzShell.state().playing` has the same blind spot (it's false on Connect
+  outputs), which affects the menubar's play/pause state; fix it from the
+  same button.
+- Safari quality cap (the `window.safari` stub): confirm that Qobuz's quality
+  setting now offers only MP3 320 for "Default audio output".
+
 To do:
 
 - `custom.css` padding for the traffic lights using `--qobuz-shell-titlebar-height`.
@@ -83,10 +100,13 @@ Gotchas found so far:
   rules must exclude them or the icons render as letters.
 - On Discover, focusing search opens a history panel that re-renders the bar and
   drops focus; `focusSearch` refocuses after 100ms.
-- Local playback ("Default audio output") stalls on FLAC qualities (spinner,
-  time resets to 0:00): 192 kHz immediately, CD/96 kHz after a while. MP3 320
-  plays normally, on any output including AirPlay — use that for now. Not
-  AirPlay-specific. Seen in Safari with FLAC too. Cause not yet known.
+- Local playback ("Default audio output") is limited to MP3 320. WebKit's MSE
+  supports neither `audio/flac` nor `audio/mp4; codecs="flac"`, so FLAC
+  qualities stall (spinner, time resets to 0:00) on every output. Qobuz caps
+  real Safari at MP3 for this reason, detecting it via
+  `window.safari.pushNotification`. inject.js stubs that so QobuzShell gets the
+  same cap. For lossless, use Qobuz Connect to a Firefox tab, or the official app.
+  (The user-agent Safari check is separate: it picks Qobuz's raw-FLAC path.)
 - Don't wrap `fetch`, XHR or `SourceBuffer` in inject.js, even for diagnostics:
   doing so made playback silent (clock stuck at 0) and sent debugging the wrong
   way. Plain media element event listeners are fine.
