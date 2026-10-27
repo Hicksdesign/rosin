@@ -83,10 +83,16 @@ Gotchas found so far:
   rules must exclude them or the icons render as letters.
 - On Discover, focusing search opens a history panel that re-renders the bar and
   drops focus; `focusSearch` refocuses after 100ms.
-- With the system output set to AirPlay, 192 kHz streams stall (spinner, time
-  resets to 0:00) in WebKit, Safari included; 96 kHz plays. Local playback uses
-  MSE, and Firefox resamples in its own stack so it doesn't hit this. Keep Qobuz's
-  quality at 96 kHz. The `file/url` API calls are signed, so the format can't be
+- Local playback ("Default audio output") stalls on FLAC qualities (spinner,
+  time resets to 0:00): 192 kHz immediately, CD/96 kHz after a while. MP3 320
+  plays normally, on any output including AirPlay — use that for now. Not
+  AirPlay-specific. Seen in Safari with FLAC too. Cause not yet known.
+- Don't wrap `fetch`, XHR or `SourceBuffer` in inject.js, even for diagnostics:
+  doing so made playback silent (clock stuck at 0) and sent debugging the wrong
+  way. Plain media element event listeners are fine.
+- Constraints for any playback fix: local playback is MSE for every format, MP3 included;
+  with `MediaSource` missing Qobuz shows an "unsupported" modal rather than
+  falling back; `file/url` API calls are signed, so the format can't be
   rewritten in flight.
 - Debug builds read `inject.js`, `custom.css` and fonts from the source tree:
   ⌘R reloads the page with fresh scripts, ⌘⇧R re-applies CSS and fonts.
