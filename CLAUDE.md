@@ -1,8 +1,13 @@
 # QobuzShell
 
-A personal macOS app that wraps the Qobuz web player (https://play.qobuz.com) in a
-native AppKit window with a `WKWebView`, adding custom CSS/fonts, keyboard shortcuts
-and a menubar now-playing item. Not for distribution.
+A personal macOS menubar companion for the **Qobuz desktop app** (Electron). It
+patches Qobuz to load a script that adds custom CSS/fonts and keyboard shortcuts
+and reports the current track, keeps that patch in place across Qobuz updates,
+and shows the track and playback controls in the menubar. Not for distribution.
+
+It used to wrap the Qobuz web player in a `WKWebView`; that version is on the
+`web-wrapper` branch. It was dropped because the web player lacks the desktop
+app's audio options (Qobuz Connect speakers, hi-res output).
 
 ## Build
 
@@ -15,118 +20,95 @@ xcodegen generate          # after adding/removing files or changing project.yml
 xcodebuild -project QobuzShell.xcodeproj -scheme QobuzShell -configuration Debug build
 ```
 
-Target: macOS 14+, Swift 5.10, AppKit (no SwiftUI). Not sandboxed — see the
-comment in `Resources/QobuzShell.entitlements` for why.
+Target: macOS 14+, Swift 5.10, AppKit (no SwiftUI). Menubar-only (`LSUIElement`).
+Not sandboxed — see the comment in `Resources/QobuzShell.entitlements` for why.
 
 ## Layout
 
 | File | Role |
 |---|---|
-| `Sources/AppDelegate.swift` | Entry point; window hides instead of closing so playback continues |
-| `Sources/BrowserWindowController.swift` | The `WKWebView`, hidden title bar + drag strip, navigation policy (non-Qobuz links → default browser), menu actions |
-| `Sources/MainMenu.swift` | Menu bar and **all keyboard shortcuts** |
-| `Sources/WebBridge.swift` | Swift ↔ page bridge; `NowPlaying` model; posts `nowPlayingDidChange` |
-| `Sources/UserStyles.swift` | Loads `inject.js`, `custom.css`, fonts (override → source tree in Debug → bundle) |
-| `Sources/StatusItemController.swift` | Menubar item: track, artwork, play/pause/next/previous |
-| `Resources/inject.js` | Page script: commands on `window.QobuzShell`, state reporting, CSS/font injection |
-| `Resources/custom.css` | User styles, scoped under `html.qobuz-shell` |
+| `Sources/AppDelegate.swift` | Entry point; installs support files, starts the patcher, bridge and menubar item |
+| `Sources/SupportFiles.swift` | Copies `loader.js` and writes `config.json` into `~/Library/Application Support/QobuzShell/` |
+| `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html`; re-patches after updates; restarts Qobuz |
+| `Sources/QobuzBridge.swift` | Unix-socket client for each running loader; `NowPlaying` model; posts `nowPlayingDidChange` |
+| `Sources/StatusItemController.swift` | Menubar item: track, artwork, play/pause/next/previous, settings, patch status |
+| `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, state reporting, commands, shortcuts |
+| `Resources/custom.css` | User styles |
 | `Resources/Fonts/fonts.json` | Font manifest: `[{ "family", "file", "weight", "style" }]`. Currently Jacket Sans variable (WOFF2, roman + italic) |
 
-## How the bridge works
+## How it works
 
-- Swift → page: `bridge.call("togglePlay")` evaluates `window.QobuzShell.togglePlay()`.
-- Page → Swift: `webkit.messageHandlers.qobuzShell.postMessage({type: "nowPlaying" | "log", ...})`.
-- Playback control prefers **captured Media Session action handlers** (inject.js wraps
-  `navigator.mediaSession.setActionHandler` at document start), then DOM buttons,
-  then the raw media element. Track info prefers `navigator.mediaSession.metadata`,
-  then DOM selectors.
-- CSS uses a constructed stylesheet (`adoptedStyleSheets`); fonts are passed as bytes
-  to the `FontFace` API. Both get past the site's CSP (verified).
-- Font bytes are base64'd into the user script on every load, so keep the manifest
-  small: variable WOFF2 rather than static files.
-
-## Window chrome
-
-The title bar is hidden (`.fullSizeContentView`, transparent, no title), so the page
-runs up under the traffic lights. Two consequences:
-
-- A `WKWebView` takes every click, so a native `TitlebarDragView` strip (standard
-  title bar height, 28pt) sits on top to drag the window and handle double-click per
-  the system setting. Nothing under that strip is clickable.
-- Swift sets `--qobuz-shell-titlebar-height` on `<html>` (`0px` in full screen);
-  `custom.css` uses it to pad Qobuz's layout clear of the strip.
+- **Qobuz's structure:** Electron, code unpacked in `Contents/Resources/app/` (no
+  `app.asar`), and the integrity fuses are off (`EnableEmbeddedAsarIntegrityValidation`,
+  `OnlyLoadAppFromAsar`), so an edited `app.html` loads. The main window has
+  `nodeIntegration: true, contextIsolation: false` and a wide-open CSP.
+- **The patch:** one `<script id="qobuz-shell-loader">` before
+  `<script src="/bundle.js">` that `require()`s
+  `~/Library/Application Support/QobuzShell/loader.js`. Everything else lives
+  outside the bundle, so updates only lose that one line.
+- **Re-patching:** the bundle is replaced on every update. Patcher re-patches
+  when a Qobuz app launches and every 60s. If it patched an app that was already
+  running, the menu offers "Restart to Apply".
+- **Paths:** `config.json` gives loader.js the paths to `custom.css` and `Fonts/`:
+  Application Support overrides, else the project's `Resources/` in Debug, else
+  the app bundle. loader.js watches the CSS file's folder and re-applies on save.
+- **Bridge:** loader.js listens on `Application Support/QobuzShell/sockets/<App Name>.sock`
+  (`Qobuz.sock`, `Qobuz Beta.sock`). Newline-delimited JSON:
+  page → Swift `{type: "nowPlaying" | "log", ...}`, Swift → page `{command, argument}`.
+  The bridge scans for new sockets every 2s.
+- **Playback:** the audio engine is native (`juce.node` in the main process), so
+  the page has no media element and no Media Session. State and control come
+  from the player bar, which reflects every output, Qobuz Connect included.
+- **Debugging:** `window.QobuzShell.state()` and friends in the page console.
+  Getting a console: Qobuz has a `toggleDevTools` window method, but its trigger
+  isn't known yet. Launching with `--remote-debugging-port` is the fallback.
 
 ## Status
 
 Done:
 
-1. Builds cleanly with XcodeGen + Xcode.
-2. Qobuz registers Media Session handlers for `play`, `pause`, `nexttrack` and
-   `previoustrack`, and sets `mediaSession.metadata`, so playback control and track
-   info work without DOM selectors (`QobuzShell.state()` → `source: "mediaSession"`).
-   `QobuzShell.handlers()` lists the captured actions.
-3. Real selectors for the full player and search. Qobuz uses readable BEM classes
-   (`FullPlayer__close`, `SearchBar__input`) — prefer those; aria-labels are
-   localised, so only use them as a secondary match. The player-bar fallback
-   selectors are still unverified placeholders.
-4. CSS and font injection get past the CSP.
-5. Title bar hidden; window drags from the top strip.
+1. Patch and loader verified in Qobuz 8.3.0-b028 and Qobuz Beta 8.3.0-b026:
+   CSS and fonts apply, `custom.css` reloads live, sockets connect, and the
+   player-bar selectors report title, artist, album, artwork and paused state.
+2. Writing into the bundles worked without an App Management prompt on this Mac.
+3. Menubar play/pause/next/previous and the ⌘F, ⌘←/→, ⌘[/] and Escape shortcuts work.
 
-In progress:
+To verify:
 
-- **View ▸ Open Immersive View on Play** (setting saved in UserDefaults, passed
-  to the page like the title bar height). Works, but only with "Default audio
-  output": it triggers on the local media element's `play` event, and with a
-  Qobuz Connect output (speaker or another web player, often used for hi-res)
-  the audio plays elsewhere, so there is no local element. Next step: trigger
-  from the player bar's play/pause button state instead. Its selector isn't
-  known yet; find it by dumping `[class*="player__"]` elements with
-  aria-labels / `icon-play` / `icon-pause` / `pct-p*` classes, both while
-  playing and while paused on a Connect output, and comparing.
-  `QobuzShell.state().playing` has the same blind spot (it's false on Connect
-  outputs), which affects the menubar's play/pause state; fix it from the
-  same button.
-- Safari quality cap (the `window.safari` stub): confirm that Qobuz's quality
-  setting now offers only MP3 320 for "Default audio output".
+- Whether Reload Qobuz picks up a changed loader.js: a ⌘[/] fix only took
+  effect after restarting Qobuz, so the renderer may be keeping the old
+  module in Node's `require` cache across reloads.
+- The `playing` state on a Connect output; Open Immersive View on Play.
+- Re-patching after a real Qobuz update.
 
 To do:
 
-- `custom.css` padding for the traffic lights using `--qobuz-shell-titlebar-height`.
 - App icon in `Resources/Assets.xcassets/AppIcon.appiconset`.
+- Find what triggers Qobuz's `toggleDevTools`, for an easy page console.
 
 Gotchas found so far:
 
+- Launching Qobuz and Qobuz Beta together made both quit (no crash report).
+  Looks like Qobuz's own conflict; run one at a time.
 - Qobuz's icons are an icon font on `icon-*` / `pct` classes. Broad `font-family`
   rules must exclude them or the icons render as letters.
 - On Discover, focusing search opens a history panel that re-renders the bar and
-  drops focus; `focusSearch` refocuses after 100ms.
-- Local playback ("Default audio output") is limited to MP3 320. WebKit's MSE
-  supports neither `audio/flac` nor `audio/mp4; codecs="flac"`, so FLAC
-  qualities stall (spinner, time resets to 0:00) on every output. Qobuz caps
-  real Safari at MP3 for this reason, detecting it via
-  `window.safari.pushNotification`. inject.js stubs that so QobuzShell gets the
-  same cap. For lossless, use Qobuz Connect to a Firefox tab, or the official app.
-  (The user-agent Safari check is separate: it picks Qobuz's raw-FLAC path.)
-- Don't wrap `fetch`, XHR or `SourceBuffer` in inject.js, even for diagnostics:
-  doing so made playback silent (clock stuck at 0) and sent debugging the wrong
-  way. Plain media element event listeners are fine.
-- Constraints for any playback fix: local playback is MSE for every format, MP3 included;
-  with `MediaSource` missing Qobuz shows an "unsupported" modal rather than
-  falling back; `file/url` API calls are signed, so the format can't be
-  rewritten in flight.
-- Debug builds read `inject.js`, `custom.css` and fonts from the source tree:
-  ⌘R reloads the page with fresh scripts, ⌘⇧R re-applies CSS and fonts.
+  drops focus; `openSearch` refocuses after 100ms.
+- loader.js runs with full Node access inside Qobuz: only ever load our own files.
+- Qobuz navigates with its own in-app history (Redux `handlePrevious`/`handleNext`
+  in the nav bar), not `window.history`, so `history.back()` does nothing. Back
+  and forward click the nav bar arrows (`icon-arrow-navigation-back`/`-forward`).
+  In general, prefer clicking Qobuz's own controls over browser APIs.
 
 ## Ideas, not yet done
 
-- Feed `NowPlaying` into `MPNowPlayingInfoCenter` / `MPRemoteCommandCenter` for
-  Control Center and media keys (check first whether WebKit already does this
-  from the page's Media Session, to avoid duplicates).
-- File watcher on `custom.css` for automatic reload instead of ⌘⇧R.
+- Global hotkeys in the companion (Qobuz already handles the media keys itself,
+  via `globalShortcut`, so don't register those).
 
 ## Conventions
 
-- Keep every selector in the `SELECTORS` object in `inject.js`; nothing else should
-  query Qobuz's DOM directly.
-- Keep every shortcut in `MainMenu.swift`.
+- Keep every Qobuz selector in the `SELECTORS` object in `loader.js`; nothing else
+  should query Qobuz's DOM directly. Take selectors from Qobuz's `bundle.js`
+  (`Contents/Resources/app/node_modules/@qobuz/qobuz-dwp-ui/dist/`) where possible.
+- Keep every in-app shortcut in `SHORTCUTS` in `loader.js`.
 - Explain the reasoning when making fixes, not just the change.

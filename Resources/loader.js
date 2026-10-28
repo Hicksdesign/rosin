@@ -1,0 +1,327 @@
+// QobuzShell loader. Runs inside the Qobuz desktop app (Electron).
+//
+// The companion app patches Qobuz's app.html with one <script> that require()s
+// this file from ~/Library/Application Support/QobuzShell/. The page has Node
+// integration (nodeIntegration: true, contextIsolation: false), so this runs
+// with full Node access: keep it to our own files.
+//
+// It:
+//  - injects custom.css and the fonts in fonts.json, re-applying CSS on save;
+//  - reports the current track to the companion over a Unix socket and takes
+//    commands back (newline-delimited JSON both ways);
+//  - adds keyboard shortcuts (see SHORTCUTS).
+//
+// window.QobuzShell exposes state(), selectors and the commands for debugging.
+
+/* eslint-env node, browser */
+(() => {
+  if (window.QobuzShell) return;
+
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const net = require('net');
+
+  const SUPPORT_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'QobuzShell');
+
+  // ---------------------------------------------------------------------------
+  // SELECTORS. Taken from the desktop app's bundle.js (8.3.0). Qobuz uses
+  // readable BEM classes; aria-labels are localised, so they're avoided.
+  //
+  // The play/pause control is a <span> whose class follows the player state:
+  // player__action-pause while playing, player__action-play while paused,
+  // player__action-loader while buffering. It reflects playback on every
+  // output, Qobuz Connect included, because the audio engine is native.
+  // ---------------------------------------------------------------------------
+  const SELECTORS = {
+    playerTitle: '.player__track-name',
+    playerArtist: '.player__track-album a[href*="/artist/"]',
+    playerAlbum: '.player__track-album a[href*="/album/"]',
+    playerArtwork: '.player__track-cover img',
+
+    playButton: '.player__action-play',
+    pauseButton: '.player__action-pause',
+    loadingButton: '.player__action-loader',
+    nextButton: '.player__action-next',
+    previousButton: '.player__action-previous',
+
+    // Immersive view ("FullPlayer" in Qobuz's markup). The player-bar cover
+    // opens it.
+    immersiveRoot: '[class*="FullPlayer"]',
+    immersiveOpen: '.player__track-cover',
+    immersiveClose: '.FullPlayer__close',
+
+    searchInput: 'input.SearchBar__input',
+
+    // The nav bar's own arrows. Qobuz navigates with its own in-app history
+    // (Redux handlePrevious/handleNext), not window.history, so history.back()
+    // does nothing; clicking these is the only reliable route.
+    backButton: '.NavBar button.icon-arrow-navigation-back:not(.ButtonRoundSecondary--isDisabled)',
+    forwardButton: '.NavBar button.icon-arrow-navigation-forward:not(.ButtonRoundSecondary--isDisabled)',
+  };
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+  const $ = (sel) => { try { return document.querySelector(sel); } catch (_) { return null; } };
+  const text = (sel) => ($(sel)?.textContent || '').trim();
+  const isVisible = (el) => !!el && el.getClientRects().length > 0;
+  const click = (sel) => {
+    const el = $(sel);
+    if (!isVisible(el) || el.classList.contains('disable')) return false;
+    el.click();
+    return true;
+  };
+
+  const clients = new Set();
+  const send = (msg) => {
+    const line = JSON.stringify(msg) + '\n';
+    for (const socket of clients) socket.write(line);
+  };
+  const log = (...parts) => {
+    const message = parts.map(String).join(' ');
+    console.log('[QobuzShell]', message);
+    send({ type: 'log', message });
+  };
+
+  // The companion writes config.json with the paths to use (the project's
+  // Resources folder in Debug builds, the app bundle or overrides otherwise).
+  const readConfig = () => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(SUPPORT_DIR, 'config.json'), 'utf8'));
+    } catch (e) {
+      log('config.json unreadable:', e.message);
+      return {};
+    }
+  };
+  let config = readConfig();
+
+  // ---------------------------------------------------------------------------
+  // Custom CSS and fonts
+  //
+  // The page's CSP is wide open, so a plain <style> works. Fonts are read as
+  // bytes and registered with FontFace, which avoids file:// URL quirks.
+  // ---------------------------------------------------------------------------
+  let styleElement = null;
+  let fontFaces = [];
+
+  const applyCSS = () => {
+    let css = '';
+    try { css = config.css ? fs.readFileSync(config.css, 'utf8') : ''; } catch (e) { log('custom.css unreadable:', e.message); }
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = 'qobuz-shell-styles';
+    }
+    styleElement.textContent = css;
+    // Last in <head> so it wins over main.css at equal specificity.
+    (document.head || document.documentElement).appendChild(styleElement);
+  };
+
+  const applyFonts = () => {
+    fontFaces.forEach((face) => document.fonts.delete(face));
+    fontFaces = [];
+    if (!config.fonts) return;
+    let entries = [];
+    try { entries = JSON.parse(fs.readFileSync(path.join(config.fonts, 'fonts.json'), 'utf8')); } catch (e) { log('fonts.json unreadable:', e.message); }
+    for (const f of entries) {
+      try {
+        const buf = fs.readFileSync(path.join(config.fonts, f.file));
+        const bytes = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+        const face = new FontFace(f.family, bytes, { weight: f.weight || 'normal', style: f.style || 'normal' });
+        document.fonts.add(face);
+        fontFaces.push(face);
+        face.loaded.catch((e) => log('font failed to load:', f.family, e));
+      } catch (e) {
+        log('font error:', f.family, e.message);
+      }
+    }
+  };
+
+  const reloadStyles = () => {
+    config = readConfig();
+    applyFonts();
+    applyCSS();
+  };
+
+  // Re-apply custom.css whenever it's saved. Editors usually save by writing a
+  // new file and renaming it over the old one, which ends a watch on the file
+  // itself, so the folder is watched instead.
+  let cssWatcher = null;
+  const watchCSS = () => {
+    cssWatcher?.close();
+    if (!config.css) return;
+    let timer = null;
+    try {
+      cssWatcher = fs.watch(path.dirname(config.css), (_, filename) => {
+        if (filename && filename !== path.basename(config.css)) return;
+        clearTimeout(timer);
+        timer = setTimeout(applyCSS, 100);
+      });
+    } catch (e) {
+      log('watching custom.css failed:', e.message);
+    }
+  };
+
+  // A class to scope CSS to QobuzShell.
+  document.documentElement.classList.add('qobuz-shell');
+  reloadStyles();
+  watchCSS();
+
+  // ---------------------------------------------------------------------------
+  // Reading state
+  // ---------------------------------------------------------------------------
+  const isPlaying = () => !!($(SELECTORS.pauseButton) || $(SELECTORS.loadingButton));
+
+  const readState = () => ({
+    type: 'nowPlaying',
+    title: text(SELECTORS.playerTitle),
+    artist: text(SELECTORS.playerArtist),
+    album: text(SELECTORS.playerAlbum),
+    artwork: $(SELECTORS.playerArtwork)?.currentSrc || '',
+    playing: isPlaying(),
+    source: 'dom',
+  });
+
+  // ---------------------------------------------------------------------------
+  // Open Immersive View on Play. Fires when playback goes from stopped or
+  // paused to playing. A track change doesn't count: the control stays on
+  // pause (or the loader) across it, so closing the immersive view sticks
+  // until playback stops.
+  // ---------------------------------------------------------------------------
+  let openImmersiveOnPlay = false;
+  let wasPlaying = false;
+  const noteState = (state) => {
+    if (state.playing && !wasPlaying && openImmersiveOnPlay && !isVisible($(SELECTORS.immersiveRoot))) {
+      click(SELECTORS.immersiveOpen) || log('openImmersiveOnPlay: open button not found');
+    }
+    wasPlaying = state.playing;
+  };
+
+  // Polling is cheap here (a handful of querySelector calls) and catches every
+  // change, however Qobuz re-renders the player bar.
+  let lastReported = '';
+  const poll = () => {
+    const state = readState();
+    noteState(state);
+    const key = JSON.stringify(state);
+    if (key === lastReported) return;
+    lastReported = key;
+    send(state);
+  };
+  setInterval(poll, 500);
+
+  // ---------------------------------------------------------------------------
+  // Commands (from the companion, shortcuts, or the DevTools console)
+  // ---------------------------------------------------------------------------
+  const togglePlay = () => {
+    if (click(SELECTORS.pauseButton) || click(SELECTORS.playButton)) return;
+    log('togglePlay: no play/pause button found');
+  };
+  const next = () => { click(SELECTORS.nextButton) || log('next: button not found or disabled'); };
+  const previous = () => { click(SELECTORS.previousButton) || log('previous: button not found or disabled'); };
+  // Disabled at either end of the history, so a miss is normal: no log.
+  const goBack = () => { click(SELECTORS.backButton); };
+  const goForward = () => { click(SELECTORS.forwardButton); };
+
+  // Returns false if the immersive view wasn't open, so Escape can carry on to
+  // Qobuz's own handlers.
+  const closeImmersive = () => isVisible($(SELECTORS.immersiveRoot)) && click(SELECTORS.immersiveClose);
+
+  const focusInput = (input) => {
+    input.focus();
+    input.select?.();
+  };
+  const openSearch = () => {
+    const input = $(SELECTORS.searchInput);
+    if (!isVisible(input)) { log('openSearch: search field not found'); return; }
+    focusInput(input);
+    // On Discover, focusing the field opens a search-history panel that
+    // re-renders the search bar and drops focus. Once it settles, refocus
+    // whichever input is there now.
+    setTimeout(() => {
+      const current = $(SELECTORS.searchInput);
+      if (isVisible(current) && document.activeElement !== current) focusInput(current);
+    }, 100);
+  };
+
+  const commands = {
+    togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles,
+    reload: () => location.reload(),
+    setOpenImmersiveOnPlay: (on) => { openImmersiveOnPlay = !!on; },
+  };
+
+  // ---------------------------------------------------------------------------
+  // SHORTCUTS. Qobuz's own menu only covers editing, ⌘W, ⌘Q and full screen
+  // (⌃⌘F), so these don't collide. Shortcuts that would also edit text are
+  // skipped while a text field has focus.
+  // ---------------------------------------------------------------------------
+  const isEditing = () => {
+    const el = document.activeElement;
+    return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+  };
+  const SHORTCUTS = [
+    { key: 'f', cmd: true, run: openSearch },
+    { key: 'ArrowRight', cmd: true, editing: false, run: next },
+    { key: 'ArrowLeft', cmd: true, editing: false, run: previous },
+    { key: '[', cmd: true, editing: false, run: goBack },
+    { key: ']', cmd: true, editing: false, run: goForward },
+    { key: 'Escape', run: closeImmersive },
+  ];
+  window.addEventListener('keydown', (event) => {
+    if (event.altKey || event.ctrlKey || event.shiftKey) return;
+    const shortcut = SHORTCUTS.find((s) => s.key === event.key && !!s.cmd === event.metaKey);
+    if (!shortcut || (shortcut.editing === false && isEditing())) return;
+    // A run() that returns false didn't handle the key; let it through.
+    if (shortcut.run() === false) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+
+  // ---------------------------------------------------------------------------
+  // Socket for the companion app: one per Qobuz app (Qobuz, Qobuz Beta), named
+  // after the .app so both can run at once.
+  // ---------------------------------------------------------------------------
+  const appName = (decodeURIComponent(location.pathname).match(/([^/]+)\.app\/Contents\//) || [])[1] || 'Qobuz';
+  const socketDir = path.join(SUPPORT_DIR, 'sockets');
+  const socketPath = path.join(socketDir, `${appName}.sock`);
+
+  const handleLine = (line) => {
+    let msg;
+    try { msg = JSON.parse(line); } catch (_) { return; }
+    const command = commands[msg.command];
+    if (typeof command !== 'function') { log('unknown command:', msg.command); return; }
+    command(msg.argument);
+  };
+
+  const server = net.createServer((socket) => {
+    clients.add(socket);
+    socket.setEncoding('utf8');
+    let buffer = '';
+    socket.on('data', (chunk) => {
+      buffer += chunk;
+      let newline;
+      while ((newline = buffer.indexOf('\n')) >= 0) {
+        handleLine(buffer.slice(0, newline));
+        buffer = buffer.slice(newline + 1);
+      }
+    });
+    socket.on('close', () => clients.delete(socket));
+    socket.on('error', () => clients.delete(socket));
+    socket.write(JSON.stringify(readState()) + '\n');
+  });
+  server.on('error', (e) => console.error('[QobuzShell] socket error:', e));
+  try {
+    fs.mkdirSync(socketDir, { recursive: true });
+    // Left behind if Qobuz quit without closing it; listen() fails otherwise.
+    fs.rmSync(socketPath, { force: true });
+    server.listen(socketPath);
+  } catch (e) {
+    console.error('[QobuzShell] socket setup failed:', e);
+  }
+  window.addEventListener('beforeunload', () => {
+    server.close();
+    cssWatcher?.close();
+  });
+
+  window.QobuzShell = { ...commands, state: readState, selectors: SELECTORS, socketPath };
+})();

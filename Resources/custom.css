@@ -1,16 +1,15 @@
 /*
  * QobuzShell custom styles.
  *
- * Applied to every page load. Edit, then ⌘⇧R (View ▸ Reload Custom CSS) to see
- * changes without rebuilding — in Debug builds this file is read straight from
+ * Loaded into the Qobuz desktop app by loader.js, and re-applied as soon as
+ * you save. With a Debug build of QobuzShell, this file is read straight from
  * the project folder.
  *
  * To override without rebuilding a Release build, put a custom.css in
- * ~/Library/Application Support/QobuzShell/ — it takes priority over this one.
+ * ~/Library/Application Support/QobuzShell/ — it takes priority over this one
+ * (choose QobuzShell ▸ Reload Qobuz after adding it).
  *
- * Everything is scoped under html.qobuz-shell, which the injected script adds.
- * Selectors below are examples only — check the real ones in the Web Inspector
- * (Safari ▸ Develop ▸ [your Mac] ▸ QobuzShell).
+ * html.qobuz-shell is added by loader.js; use it to scope rules to QobuzShell.
  */
 
 /* ---- Fonts ---------------------------------------------------------------

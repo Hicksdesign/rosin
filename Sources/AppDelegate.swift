@@ -1,43 +1,28 @@
 import AppKit
 
+/// A menubar-only companion to the Qobuz desktop app. It patches Qobuz to load
+/// loader.js (custom CSS, fonts, shortcuts, state reporting), keeps that patch
+/// in place across Qobuz updates, and shows the current track in the menubar.
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var windowController: BrowserWindowController!
+    private var patcher: Patcher!
+    private var bridge: QobuzBridge!
     private var statusItemController: StatusItemController!
 
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
-        app.setActivationPolicy(.regular)
+        // No Dock icon or main menu; LSUIElement in Info.plist does the same
+        // for the launch itself.
+        app.setActivationPolicy(.accessory)
         app.run()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        windowController = BrowserWindowController()
-        NSApp.mainMenu = MainMenu.build(browser: windowController)
-        statusItemController = StatusItemController(
-            bridge: windowController.bridge,
-            showWindow: { [weak self] in self?.showMainWindow() }
-        )
-        showMainWindow()
-    }
-
-    // Closing the window only hides it, so playback carries on and the
-    // menubar item keeps working. Quit with ⌘Q or from the menubar menu.
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        false
-    }
-
-    // Clicking the Dock icon brings the hidden window back.
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { showMainWindow() }
-        return true
-    }
-
-    func showMainWindow() {
-        windowController.showWindow(nil)
-        windowController.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        SupportFiles.install()
+        patcher = Patcher()
+        bridge = QobuzBridge()
+        statusItemController = StatusItemController(bridge: bridge, patcher: patcher)
     }
 }
