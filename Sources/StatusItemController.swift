@@ -1,12 +1,19 @@
 import AppKit
 
-/// The menubar item: shows the current track, offers playback controls, and
-/// shows whether each Qobuz app is patched.
+/// The menubar items: one shows the current track (cover and title) with a
+/// menu of playback controls, settings and patch status; the other is a
+/// play/pause button that toggles playback directly.
 final class StatusItemController: NSObject, NSMenuDelegate {
-    /// Set to false to show only the icon in the menubar.
+    /// Set to false to show only the cover (or icon) in the menubar.
     static let showsTrackTitle = true
     static let maxTitleLength = 32
+    static let menubarArtworkSize: CGFloat = 18
+    static let menuArtworkSize: CGFloat = 40
 
+    // New status items appear to the left of existing ones, so the play/pause
+    // button is created first to sit on the right of the track. Their
+    // autosave names let macOS remember where they're ⌘-dragged to.
+    private let playButtonItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let bridge: QobuzBridge
     private let patcher: Patcher
@@ -19,6 +26,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// Patch status items are rebuilt each time the menu opens, after this one.
     private let patchSectionStart = NSMenuItem.separator()
 
+    /// Full-size covers, as downloaded; sized copies are made per use.
     private var artworkCache: [URL: NSImage] = [:]
     private var artworkTask: URLSessionDataTask?
 
@@ -28,8 +36,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         super.init()
         buildMenu()
         menu.delegate = self
+        statusItem.autosaveName = "QobuzShell.track"
         statusItem.menu = menu
         statusItem.button?.imagePosition = .imageLeading
+
+        // No menu, so a click runs the action instead of opening one.
+        playButtonItem.autosaveName = "QobuzShell.playPause"
+        playButtonItem.button?.target = self
+        playButtonItem.button?.action = #selector(togglePlayPause)
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(nowPlayingChanged),
@@ -57,7 +71,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
 
         // A setting rather than an action: the checkmark shows whether it's on.
-        immersiveItem.title = "Open Immersive View on Play"
+        immersiveItem.title = "Open Fullscreen Player on Play"
         immersiveItem.action = #selector(toggleOpenImmersiveOnPlay)
         immersiveItem.target = self
         menu.addItem(immersiveItem)
@@ -145,16 +159,21 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func update(with np: NowPlaying) {
         guard let button = statusItem.button else { return }
 
-        let symbol = np.hasTrack && np.isPlaying ? "waveform" : "music.note"
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Qobuz")
-
         if Self.showsTrackTitle, np.hasTrack {
-            let text = np.artist.isEmpty ? np.title : "\(np.artist) – \(np.title)"
+            let text = np.artist.isEmpty ? np.title : "\(np.title) – \(np.artist)"
             button.title = " " + truncated(text)
         } else {
             button.title = ""
         }
         button.toolTip = np.hasTrack ? "\(np.title)\n\(np.artist)" : "Qobuz"
+
+        // The play/pause button shows the action a click will take, like the
+        // controls in Qobuz. Hidden until there's a track to play.
+        playButtonItem.isVisible = np.hasTrack
+        playButtonItem.button?.image = NSImage(
+            systemSymbolName: np.isPlaying ? "pause.fill" : "play.fill",
+            accessibilityDescription: np.isPlaying ? "Pause" : "Play"
+        )
 
         trackItem.attributedTitle = NSAttributedString(
             string: np.hasTrack ? np.title : "Nothing playing",
@@ -176,18 +195,39 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func loadArtwork(_ url: URL?) {
         artworkTask?.cancel()
-        guard let url else { trackItem.image = nil; return }
-        if let cached = artworkCache[url] { trackItem.image = cached; return }
+        guard let url else { showArtwork(nil); return }
+        if let cached = artworkCache[url] { showArtwork(cached); return }
 
+        // Until the cover arrives, show the icon rather than the last track's cover.
+        showArtwork(nil)
         artworkTask = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
             guard let data, let image = NSImage(data: data) else { return }
-            image.size = NSSize(width: 40, height: 40)
             DispatchQueue.main.async {
                 self?.artworkCache[url] = image
-                if self?.bridge.nowPlaying.artworkURL == url { self?.trackItem.image = image }
+                if self?.bridge.nowPlaying.artworkURL == url { self?.showArtwork(image) }
             }
         }
         artworkTask?.resume()
+    }
+
+    /// Puts the cover in the menubar and the menu, or the note icon if there isn't one.
+    private func showArtwork(_ cover: NSImage?) {
+        guard let cover else {
+            statusItem.button?.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: "Qobuz")
+            trackItem.image = nil
+            return
+        }
+        statusItem.button?.image = Self.thumbnail(of: cover, size: Self.menubarArtworkSize, cornerRadius: 3)
+        trackItem.image = Self.thumbnail(of: cover, size: Self.menuArtworkSize, cornerRadius: 4)
+    }
+
+    /// A square, rounded copy of the cover. Drawn on demand, so it stays sharp on any display.
+    private static func thumbnail(of image: NSImage, size: CGFloat, cornerRadius: CGFloat) -> NSImage {
+        NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).addClip()
+            image.draw(in: rect)
+            return true
+        }
     }
 
     // MARK: Actions

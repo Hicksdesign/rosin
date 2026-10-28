@@ -307,7 +307,12 @@
     });
     socket.on('close', () => clients.delete(socket));
     socket.on('error', () => clients.delete(socket));
-    socket.write(JSON.stringify(readState()) + '\n');
+    // Greet with the current state, after a moment. A client that sends one
+    // command and hangs up (a script, nc -U) has gone by then; writing to it
+    // straight away fails with EPIPE, and Node discards the unread command.
+    setTimeout(() => {
+      if (!socket.destroyed) socket.write(JSON.stringify(readState()) + '\n');
+    }, 100);
   });
   server.on('error', (e) => console.error('[QobuzShell] socket error:', e));
   try {

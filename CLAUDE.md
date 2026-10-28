@@ -75,9 +75,6 @@ Done:
 
 To verify:
 
-- Whether Reload Qobuz picks up a changed loader.js: a ⌘[/] fix only took
-  effect after restarting Qobuz, so the renderer may be keeping the old
-  module in Node's `require` cache across reloads.
 - The `playing` state on a Connect output; Open Immersive View on Play.
 - Re-patching after a real Qobuz update.
 
@@ -99,6 +96,12 @@ Gotchas found so far:
   in the nav bar), not `window.history`, so `history.back()` does nothing. Back
   and forward click the nav bar arrows (`icon-arrow-navigation-back`/`-forward`).
   In general, prefer clicking Qobuz's own controls over browser APIs.
+- Reloading the page (Reload Qobuz) does load a changed loader.js; there's no
+  `require` cache problem (tested). Commands from a client that connects,
+  sends and hangs up straight away used to be dropped about 1 time in 6:
+  the loader's greeting hit EPIPE and Node discarded the unread command.
+  The greeting is now delayed 100ms. To script commands, e.g.
+  `printf '{"command":"reload"}\n' | nc -U ~/Library/Application\ Support/QobuzShell/sockets/Qobuz.sock`.
 
 ## Ideas, not yet done
 
