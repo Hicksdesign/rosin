@@ -150,12 +150,15 @@
   };
 
   // ---------------------------------------------------------------------------
-  // ACCENTS. legacy.css hard-codes Qobuz's blues in ~270 places instead of
-  // using variables, so each use is swapped for a variable in the loaded sheet
+  // ACCENTS. legacy.css hard-codes Qobuz's accent colours in ~300 places
+  // instead of using variables, so each use is swapped for a variable in the loaded sheet
   // itself (through the CSSOM: no copy of the sheet, nothing to keep in sync
   // with Qobuz updates). custom.css can then recolour them all at once:
   //
   //   :root { --qobuz-shell-accent: #e05a00; --qobuz-shell-accent-hover: #ff7a1a; }
+  //
+  // The dark theme's accent, #ffcb74, is also --color-brand-60 in main.css,
+  // which the newer components use; set both to recolour it everywhere.
   //
   // Each variable falls back to Qobuz's own colour, so an unset one changes
   // nothing. The CSSOM serialises colours as rgb(0, 112, 239), whatever the
@@ -165,6 +168,7 @@
   const ACCENTS = [
     { rgb: '0, 112, 239', hex: '#0070ef', variable: '--qobuz-shell-accent' },
     { rgb: '0, 172, 255', hex: '#00acff', variable: '--qobuz-shell-accent-hover' },
+    { rgb: '255, 203, 116', hex: '#ffcb74', variable: '--qobuz-shell-accent-dark' },
   ];
   const accentPattern = new RegExp(`rgba?\\((${ACCENTS.map((a) => a.rgb).join('|')})(?:, ([\\d.]+))?\\)`, 'g');
   const accentValue = (rgb, alpha) => {
