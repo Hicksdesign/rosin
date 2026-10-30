@@ -72,6 +72,7 @@ Done:
    player-bar selectors report title, artist, album, artwork and paused state.
 2. Writing into the bundles worked without an App Management prompt on this Mac.
 3. Menubar play/pause/next/previous and the ⌘F, ⌘←/→, ⌘[/] and Escape shortcuts work.
+4. The immersive view shows the full-size (`_max.jpg`) cover.
 
 To verify:
 

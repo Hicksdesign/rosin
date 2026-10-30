@@ -50,6 +50,8 @@
     immersiveRoot: '[class*="FullPlayer"]',
     immersiveOpen: '.player__track-cover',
     immersiveClose: '.FullPlayer__close',
+    // A div with the cover as an inline background-image.
+    immersiveCover: '.FullPlayer__cover .Cover__item',
 
     searchInput: 'input.SearchBar__input',
 
@@ -197,10 +199,26 @@
     wasPlaying = state.playing;
   };
 
+  // ---------------------------------------------------------------------------
+  // Full-size cover in the immersive view. Qobuz gives it release.image.large,
+  // the 600px "_600.jpg", even though it's drawn far bigger. The CDN also has
+  // "_max.jpg", the full-size master (3000px on the albums tried); there's no
+  // size in between. Layering it over the 600px one keeps that showing while
+  // the big one loads. React only rewrites the style when the track changes,
+  // so the upgrade sticks until then and the next poll redoes it.
+  // ---------------------------------------------------------------------------
+  const upgradeImmersiveCover = () => {
+    const el = $(SELECTORS.immersiveCover);
+    const bg = el?.style.backgroundImage || '';
+    const match = bg.match(/^url\("([^"]+_)600\.jpg"\)$/);
+    if (match) el.style.backgroundImage = `url("${match[1]}max.jpg"), ${bg}`;
+  };
+
   // Polling is cheap here (a handful of querySelector calls) and catches every
   // change, however Qobuz re-renders the player bar.
   let lastReported = '';
   const poll = () => {
+    upgradeImmersiveCover();
     const state = readState();
     noteState(state);
     const key = JSON.stringify(state);
