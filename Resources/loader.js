@@ -6,8 +6,9 @@
 // with full Node access: keep it to our own files.
 //
 // It:
-//  - injects custom.css and the fonts in fonts.json, re-applying CSS on save
-//    (unless the companion's Use Custom Theme setting is off);
+//  - injects custom.css and the fonts in fonts.json, re-applying CSS on save,
+//    and turns Qobuz's hard-coded accent colours into variables (see ACCENTS),
+//    unless the companion's Use Custom Theme setting is off;
 //  - reports the current track to the companion over a Unix socket and takes
 //    commands back (newline-delimited JSON both ways);
 //  - adds keyboard shortcuts (see SHORTCUTS).
@@ -61,6 +62,9 @@
     // does nothing; clicking these is the only reliable route.
     backButton: '.NavBar button.icon-arrow-navigation-back:not(.ButtonRoundSecondary--isDisabled)',
     forwardButton: '.NavBar button.icon-arrow-navigation-forward:not(.ButtonRoundSecondary--isDisabled)',
+
+    // The older stylesheet, which hard-codes the accent colours (see ACCENTS).
+    legacyStylesheet: 'link[href*="legacy.css"]',
   };
 
   // ---------------------------------------------------------------------------
@@ -145,10 +149,64 @@
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // ACCENTS. legacy.css hard-codes Qobuz's blues in ~270 places instead of
+  // using variables, so each use is swapped for a variable in the loaded sheet
+  // itself (through the CSSOM: no copy of the sheet, nothing to keep in sync
+  // with Qobuz updates). custom.css can then recolour them all at once:
+  //
+  //   :root { --qobuz-shell-accent: #e05a00; --qobuz-shell-accent-hover: #ff7a1a; }
+  //
+  // Each variable falls back to Qobuz's own colour, so an unset one changes
+  // nothing. The CSSOM serialises colours as rgb(0, 112, 239), whatever the
+  // source said, and shorthands as longhands, so that's what's matched.
+  // Translucent uses (rgba(0,112,239,.3)) keep their alpha.
+  // ---------------------------------------------------------------------------
+  const ACCENTS = [
+    { rgb: '0, 112, 239', hex: '#0070ef', variable: '--qobuz-shell-accent' },
+    { rgb: '0, 172, 255', hex: '#00acff', variable: '--qobuz-shell-accent-hover' },
+  ];
+  const accentPattern = new RegExp(`rgba?\\((${ACCENTS.map((a) => a.rgb).join('|')})(?:, ([\\d.]+))?\\)`, 'g');
+  const accentValue = (rgb, alpha) => {
+    const accent = ACCENTS.find((a) => a.rgb === rgb);
+    const colour = `var(${accent.variable}, ${accent.hex})`;
+    return alpha === undefined ? colour : `rgb(from ${colour} r g b / ${alpha})`;
+  };
+
+  // [style, property, original value, priority] per change, to undo them.
+  let accentChanges = [];
+  const eachStyle = (rules, visit) => {
+    for (const rule of rules) {
+      if (rule.style) visit(rule.style);
+      if (rule.cssRules) eachStyle(rule.cssRules, visit);
+    }
+  };
+  const applyAccents = () => {
+    if (accentChanges.length) return;
+    const sheet = $(SELECTORS.legacyStylesheet)?.sheet;
+    if (!sheet) { log('applyAccents: legacy.css not loaded'); return; }
+    eachStyle(sheet.cssRules, (style) => {
+      for (let i = 0; i < style.length; i++) {
+        const property = style[i];
+        const value = style.getPropertyValue(property);
+        const changed = value.replace(accentPattern, (_, rgb, alpha) => accentValue(rgb, alpha));
+        if (changed === value) continue;
+        const priority = style.getPropertyPriority(property);
+        style.setProperty(property, changed, priority);
+        accentChanges.push([style, property, value, priority]);
+      }
+    });
+  };
+  const removeAccents = () => {
+    accentChanges.forEach(([style, property, value, priority]) => style.setProperty(property, value, priority));
+    accentChanges = [];
+  };
+
   const reloadStyles = () => {
     config = readConfig();
     applyFonts();
     applyCSS();
+    if (themeEnabled()) applyAccents(); else removeAccents();
   };
 
   // Re-apply custom.css whenever it's saved. Editors usually save by writing a
