@@ -58,6 +58,8 @@ final class Patcher {
     /// Set by unpatch() so the periodic check doesn't put the patch straight back.
     private var autoPatch = true
     private var timer: Timer?
+    /// Apps restart() has quit, to open again once they've gone (by bundle ID).
+    private var pendingRelaunch: Set<String> = []
 
     init() {
         let center = NSWorkspace.shared.notificationCenter
@@ -71,6 +73,10 @@ final class Patcher {
     @objc private func appLaunchedOrQuit(_ note: Notification) {
         let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
         guard let id = app?.bundleIdentifier, Self.bundleIDs.contains(id) else { return }
+        if note.name == NSWorkspace.didTerminateApplicationNotification, pendingRelaunch.remove(id) != nil,
+           let app = apps.first(where: { $0.bundleID == id }) {
+            NSWorkspace.shared.openApplication(at: app.url, configuration: .init())
+        }
         // A Qobuz launch is often the first run after an update, so check now.
         refresh()
     }
@@ -161,19 +167,27 @@ final class Patcher {
     // MARK: Relaunching
 
     /// Quits a running Qobuz app and opens it again, so it loads the patched app.html.
+    ///
+    /// The relaunch waits for the system's quit notification (see
+    /// appLaunchedOrQuit). If Qobuz is still running after 10s, it's force-quit;
+    /// if the notification was somehow missed, it's opened anyway. Either way a
+    /// restart can't leave Qobuz closed for good.
     func restart(_ app: QobuzApp) {
         guard let running = app.runningInstance else {
             NSWorkspace.shared.openApplication(at: app.url, configuration: .init())
             return
         }
-        var observation: NSKeyValueObservation?
-        observation = running.observe(\.isTerminated) { _, _ in
-            observation?.invalidate()
-            DispatchQueue.main.async {
+        pendingRelaunch.insert(app.bundleID)
+        running.terminate()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self, self.pendingRelaunch.contains(app.bundleID) else { return }
+            if let running = app.runningInstance {
+                running.forceTerminate()
+            } else {
+                self.pendingRelaunch.remove(app.bundleID)
                 NSWorkspace.shared.openApplication(at: app.url, configuration: .init())
             }
         }
-        running.terminate()
     }
 
     static func openAppManagementSettings() {
