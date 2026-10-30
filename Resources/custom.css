@@ -1,17 +1,17 @@
 @charset "UTF-8";
 /*
- * Qobuz Theme by Hicks.design
+ * Rosin is a Qobuz Theme and companion app by Hicks.design
  * Version 1.5
  *
  * Loaded into the Qobuz desktop app by loader.js, and re-applied on save.
- * With a Debug build of QobuzShell, this file is read straight from
+ * With a Debug build of Rosin, this file is read straight from
  * the project folder.
  *
  * To override without rebuilding a Release build, put a custom.css in
- * ~/Library/Application Support/QobuzShell/ — it takes priority over this one
- * (choose QobuzShell ▸ Reload Qobuz after adding it).
+ * ~/Library/Application Support/Rosin/ — it takes priority over this one
+ * (choose Rosin ▸ Reload Qobuz after adding it).
  *
- * html.qobuz-shell is added by loader.js; use it to scope rules to QobuzShell.
+ * html.rosin is added by loader.js; use it to scope rules to Rosin.
  */
 /* ---- Fonts ---------------------------------------------------------------
  * Register font files in Resources/Fonts/fonts.json, then use the family
@@ -24,26 +24,18 @@
  * Qobuz's icons are an icon font set via icon-* and pct classes, so those
  * elements are skipped; otherwise the icons would render as letters.
  */
-html.qobuz-shell *:not([class*=icon-]):not([class*=pct]) {
+html.rosin *:not([class*=icon-]):not([class*=pct]) {
   font-family: "Jacket Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 :root {
-  --new-accent: hsl(35, 90%, 60%);
-  --token-text-accent: var(--new-accent);
+  --rosin-accent: hsl(35, 90%, 60%);
+  --rosin-accent-hover: hsl(35, 90%, 60%);
+  --rosin-accent-dark: var(--rosin-accent);
+  --color-brand-60: var(--rosin-accent-dark);
   --fullscreen: 73dvh;
   --component-height: 36px;
   --container-desktop-large: 100%;
-}
-
-/* Enforce a nicer sans-serif font everywhere  */
-body,
-body *:not(.global__button--favorite) {
-  /* Place your own UI font of choice here */
-  font-family: "Jacket Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
-  --font-weight-bold: 700;
-  font-optical-sizing: auto;
-  webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3,
@@ -54,6 +46,8 @@ h1, h2, h3,
   font-weight: 700;
   line-height: 1.1;
   font-variation-settings: "opsz" 32;
+  text-wrap: balance;
+  white-space-collapse: unset !important;
 }
 
 h1,
@@ -62,7 +56,6 @@ h1.PageHeader__title {
   overflow: unset;
 }
 
-/* now playing track title */
 .StoryHeading__title {
   max-inline-size: 30ch !important;
   -webkit-box-orient: unset !important;
@@ -88,6 +81,7 @@ h1.PageHeader__title {
   font-weight: 350;
 }
 
+/* now playing track title */
 /* restrict width of large text blocks, such as bios */
 .text-primary,
 .PageHeader__description,
@@ -124,78 +118,6 @@ h1.PageHeader__title {
   display: none !important;
 }
 
-/* Change blue accent color */
-/* Put your preferred color in the root variables at the top */
-.bg-accent,
-button.bt6.active,
-button.bt6:hover,
-button.bt6.blue,
-.ActionsBar__item.pct-play,
-.album-card__play.pct-play:hover,
-.CreditsTrack__player,
-.global__button--create-playlist:hover,
-.global__button--add-to-playlist:hover,
-.global__button--white:hover,
-.empty-state__link,
-.MagazineNavigation__menuItem--active,
-.track-list .track-player:after,
-.playlist-list-list .track-player:after,
-.player__settings-control-playqueue-number,
-.player__progressbar__cursor,
-.player__progressbar input[type=range]::-webkit-slider-thumb,
-.player__progressbar progress::-webkit-progress-value,
-.rangeslider-horizontal .rangeslider__fill,
-.rangeslider-horizontal .rangeslider__handle,
-.Switch--isSelected .Switch__toggle {
-  background-color: var(--new-accent) !important;
-}
-
-.AudioOutputSelected__content__main__status .SoundVisualizer,
-.album-items .bt2,
-.album-card:hover .album-card__name,
-.album-card.active .album-card__name,
-button[aria-label="Close library settings"],
-.BigStoryCard__label,
-.bt6,
-.CreditsTrack__header:hover .CreditsTrack__arrow,
-.CreditsTrack__artist:hover,
-.CreditsTrack__composer:hover,
-.CreditsModal__button:hover,
-.CreditsModal__button--active,
-.dropdown .pct.pct-checked,
-.fullsearch .best-result-title:before,
-.global__link:hover,
-.global__button--organise-playlist:before,
-.item.active .album-card__name,
-.item .bt2,
-.item-list .bt2,
-.ListItem__local--isHires:before,
-.main-content .search .pct-search:hover,
-.pct.pct-cross:hover,
-.popin-add-playlist .modal-content .modal-header .nav-link.active,
-.player__settings-quality .pct::before,
-.player__progressbar__cursor *,
-.playlist-card:hover .playlist-card__title,
-.playlist-card.active .playlist-card__title,
-.popin-description__label,
-.quality-popover__device,
-.StoryAlbum__button,
-.StoryCard__label,
-.SearchHistory__close:hover,
-.StoryPlaylist__button,
-.Switch--isSelected .Switch__toggleCircle:before,
-.TagBar__tags:first-child .TagBar__tag,
-.theme-dark .AudioOutputSelected__icon:before,
-.theme-dark .AudioOutputSelected__content__main,
-.theme-dark .NavBarMenu__userSubscription,
-.text-accent,
-.text-icon-accent,
-.user-library .view-mode span:hover:before,
-.user-library .view-mode span.selected:before,
-.user-library .search .pct-search:hover {
-  color: var(--new-accent) !important;
-}
-
 .ActionsBar__item,
 .ButtonRoundSecondary--isDisabled,
 .NavBarMenu__appearanceMode,
@@ -203,19 +125,6 @@ button[aria-label="Close library settings"],
 .ui-base-switch--switch {
   background: unset !important;
   border: unset !important;
-}
-
-.dropdown__button::after {
-  border-right-color: var(--new-accent) !important;
-  border-top-color: var(--new-accent) !important;
-}
-
-button.bt6:hover,
-button.bt6.active,
-button.bt6.blue,
-.global__button--play,
-.global__button--white:hover {
-  border-color: var(--new-accent) !important;
 }
 
 .imports-list .imports-tracks-list .header-list {
