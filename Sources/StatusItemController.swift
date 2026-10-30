@@ -23,6 +23,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let detailItem = NSMenuItem()
     private let playPauseItem = NSMenuItem()
     private let immersiveItem = NSMenuItem()
+    private let themeItem = NSMenuItem()
     /// Patch status items are rebuilt each time the menu opens, after this one.
     private let patchSectionStart = NSMenuItem.separator()
 
@@ -70,11 +71,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(actionItem("Previous Track", #selector(previousTrack), symbol: "backward.fill"))
         menu.addItem(.separator())
 
-        // A setting rather than an action: the checkmark shows whether it's on.
+        // Settings rather than actions: the checkmark shows whether each is on.
         immersiveItem.title = "Open Fullscreen Player on Play"
         immersiveItem.action = #selector(toggleOpenImmersiveOnPlay)
         immersiveItem.target = self
         menu.addItem(immersiveItem)
+        themeItem.title = "Use Custom Theme"
+        themeItem.action = #selector(toggleTheme)
+        themeItem.target = self
+        menu.addItem(themeItem)
         menu.addItem(.separator())
 
         menu.addItem(actionItem("Show Qobuz", #selector(showQobuz)))
@@ -94,6 +99,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         immersiveItem.state = bridge.opensImmersiveOnPlay ? .on : .off
+        themeItem.state = SupportFiles.themeEnabled ? .on : .off
         rebuildPatchSection()
     }
 
@@ -238,6 +244,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func toggleOpenImmersiveOnPlay() {
         bridge.opensImmersiveOnPlay.toggle()
+    }
+
+    /// Saving the setting rewrites config.json; reloadStyles makes each
+    /// running Qobuz re-read it.
+    @objc private func toggleTheme() {
+        SupportFiles.themeEnabled.toggle()
+        bridge.callAll("reloadStyles")
     }
 
     /// Brings forward the Qobuz app the menubar is following, or any running

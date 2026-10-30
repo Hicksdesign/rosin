@@ -4,7 +4,7 @@ import Foundation
 /// ~/Library/Application Support/QobuzShell/:
 ///
 ///   loader.js     copied from this app on every launch (the patch require()s it)
-///   config.json   where loader.js finds custom.css and the fonts
+///   config.json   where loader.js finds custom.css and the fonts, and whether to apply them
 ///   sockets/      one Unix socket per running Qobuz app (created by loader.js)
 ///
 /// custom.css and Fonts/ are looked up in this order (first match wins):
@@ -41,11 +41,25 @@ enum SupportFiles {
             .first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
+    // MARK: Settings
+
+    /// Whether loader.js applies custom.css and the fonts. On by default.
+    /// Passed in config.json, so Qobuz starts with the right look.
+    private static let themeEnabledKey = "themeEnabled"
+    static var themeEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: themeEnabledKey) as? Bool ?? true }
+        set {
+            UserDefaults.standard.set(newValue, forKey: themeEnabledKey)
+            writeConfig()
+        }
+    }
+
     // MARK: Install
 
     private struct Config: Encodable {
         var css: String?
         var fonts: String?
+        var theme: Bool
     }
 
     /// Copies loader.js and writes config.json. Run at launch and before
@@ -64,16 +78,26 @@ enum SupportFiles {
             try? fm.removeItem(at: loaderDestination)
             try fm.copyItem(at: loader, to: loaderDestination)
 
-            let dirs = [directory, sourceResourcesDirectory, bundleDirectory]
-            let config = Config(
-                css: firstExisting("custom.css", in: dirs)?.path,
-                fonts: firstExisting("Fonts/fonts.json", in: dirs)?.deletingLastPathComponent().path
-            )
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
-            try encoder.encode(config).write(to: directory.appendingPathComponent("config.json"), options: .atomic)
+            writeConfig()
         } catch {
             NSLog("[QobuzShell] Installing support files failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Writes config.json. loader.js reads it on load and on reloadStyles.
+    static func writeConfig() {
+        let dirs = [directory, sourceResourcesDirectory, bundleDirectory]
+        let config = Config(
+            css: firstExisting("custom.css", in: dirs)?.path,
+            fonts: firstExisting("Fonts/fonts.json", in: dirs)?.deletingLastPathComponent().path,
+            theme: themeEnabled
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+        do {
+            try encoder.encode(config).write(to: directory.appendingPathComponent("config.json"), options: .atomic)
+        } catch {
+            NSLog("[QobuzShell] Writing config.json failed: \(error.localizedDescription)")
         }
     }
 }

@@ -6,7 +6,8 @@
 // with full Node access: keep it to our own files.
 //
 // It:
-//  - injects custom.css and the fonts in fonts.json, re-applying CSS on save;
+//  - injects custom.css and the fonts in fonts.json, re-applying CSS on save
+//    (unless the companion's Use Custom Theme setting is off);
 //  - reports the current track to the companion over a Unix socket and takes
 //    commands back (newline-delimited JSON both ways);
 //  - adds keyboard shortcuts (see SHORTCUTS).
@@ -87,7 +88,8 @@
   };
 
   // The companion writes config.json with the paths to use (the project's
-  // Resources folder in Debug builds, the app bundle or overrides otherwise).
+  // Resources folder in Debug builds, the app bundle or overrides otherwise)
+  // and `theme`, its Use Custom Theme setting.
   const readConfig = () => {
     try {
       return JSON.parse(fs.readFileSync(path.join(SUPPORT_DIR, 'config.json'), 'utf8'));
@@ -97,6 +99,8 @@
     }
   };
   let config = readConfig();
+  // Missing from configs written before the setting existed: on, as by default.
+  const themeEnabled = () => config.theme !== false;
 
   // ---------------------------------------------------------------------------
   // Custom CSS and fonts
@@ -109,7 +113,9 @@
 
   const applyCSS = () => {
     let css = '';
-    try { css = config.css ? fs.readFileSync(config.css, 'utf8') : ''; } catch (e) { log('custom.css unreadable:', e.message); }
+    if (themeEnabled() && config.css) {
+      try { css = fs.readFileSync(config.css, 'utf8'); } catch (e) { log('custom.css unreadable:', e.message); }
+    }
     if (!styleElement) {
       styleElement = document.createElement('style');
       styleElement.id = 'qobuz-shell-styles';
@@ -122,7 +128,7 @@
   const applyFonts = () => {
     fontFaces.forEach((face) => document.fonts.delete(face));
     fontFaces = [];
-    if (!config.fonts) return;
+    if (!themeEnabled() || !config.fonts) return;
     let entries = [];
     try { entries = JSON.parse(fs.readFileSync(path.join(config.fonts, 'fonts.json'), 'utf8')); } catch (e) { log('fonts.json unreadable:', e.message); }
     for (const f of entries) {
