@@ -26,7 +26,7 @@ struct QobuzApp: Equatable {
 /// (System Settings ▸ Privacy & Security). Without it, writes fail with EPERM
 /// and the status shows `.failed`.
 final class Patcher {
-    static let didChange = Notification.Name("QobuzShell.patcherDidChange")
+    static let didChange = Notification.Name("Rosin.patcherDidChange")
     static let bundleIDs = ["com.qobuz.desktop", "com.qobuz.desktop.beta"]
 
     enum Status: Equatable {
@@ -35,10 +35,18 @@ final class Patcher {
     }
 
     /// The marker id lets patch() spot an existing patch and unpatch() remove it.
-    private static let marker = "qobuz-shell-loader"
+    private static let marker = "rosin-loader"
     private static let snippet = """
-        <script id="\(marker)">try{require(require('path').join(require('os').homedir(),'Library/Application Support/QobuzShell/loader.js'))}catch(e){console.error('[QobuzShell] loader failed',e)}</script>
+        <script id="\(marker)">try{require(require('path').join(require('os').homedir(),'Library/Application Support/Rosin/loader.js'))}catch(e){console.error('[Rosin] loader failed',e)}</script>
         """
+    /// The patch from before the app was renamed (QobuzShell). patch() swaps
+    /// it for the current one, so Qobuz doesn't run two loaders, and unpatch()
+    /// removes it too.
+    private static let oldSnippets = [
+        """
+        <script id="qobuz-shell-loader">try{require(require('path').join(require('os').homedir(),'Library/Application Support/QobuzShell/loader.js'))}catch(e){console.error('[QobuzShell] loader failed',e)}</script>
+        """,
+    ]
     /// The loader goes in just before Qobuz's own bundle, so it's in place
     /// before the app renders. </body> is the fallback if that tag changes.
     private static let anchors = [#"<script src="/bundle.js"></script>"#, "</body>"]
@@ -100,15 +108,19 @@ final class Patcher {
 
     private func patch(_ app: QobuzApp) -> Status {
         do {
-            let html = try String(contentsOf: app.appHTML, encoding: .utf8)
-            if html.contains(Self.marker) { return .patched }
+            let original = try String(contentsOf: app.appHTML, encoding: .utf8)
+            let html = Self.removing(Self.oldSnippets, from: original)
+            if html.contains(Self.marker) {
+                if html != original { try html.write(to: app.appHTML, atomically: true, encoding: .utf8) }
+                return .patched
+            }
             guard let anchor = Self.anchors.compactMap({ html.range(of: $0) }).first else {
                 return .failed("app.html has changed; no place to add the loader")
             }
             var patched = html
             patched.insert(contentsOf: Self.snippet + Self.separator, at: anchor.lowerBound)
             try patched.write(to: app.appHTML, atomically: true, encoding: .utf8)
-            NSLog("[QobuzShell] Patched \(app.name)")
+            NSLog("[Rosin] Patched \(app.name)")
             return .patched
         } catch {
             return .failed(Self.describe(error))
@@ -119,15 +131,21 @@ final class Patcher {
         do {
             let html = try String(contentsOf: app.appHTML, encoding: .utf8)
             // Undo exactly what patch() inserted.
-            let restored = html
-                .replacingOccurrences(of: Self.snippet + Self.separator, with: "")
-                .replacingOccurrences(of: Self.snippet, with: "")
+            let restored = Self.removing([Self.snippet] + Self.oldSnippets, from: html)
             guard restored != html else { return .unpatched }
             try restored.write(to: app.appHTML, atomically: true, encoding: .utf8)
-            NSLog("[QobuzShell] Unpatched \(app.name)")
+            NSLog("[Rosin] Unpatched \(app.name)")
             return .unpatched
         } catch {
             return .failed(Self.describe(error))
+        }
+    }
+
+    /// app.html without the given snippets, each with or without the separator after it.
+    private static func removing(_ snippets: [String], from html: String) -> String {
+        snippets.reduce(html) { html, snippet in
+            html.replacingOccurrences(of: snippet + separator, with: "")
+                .replacingOccurrences(of: snippet, with: "")
         }
     }
 

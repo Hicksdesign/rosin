@@ -1,4 +1,4 @@
-# QobuzShell
+# Rosin
 
 A personal macOS wrapper for the Qobuz web player, with custom CSS and fonts,
 extra keyboard shortcuts and a menubar now-playing item.
@@ -7,9 +7,9 @@ extra keyboard shortcuts and a menubar now-playing item.
 
 ```sh
 brew install xcodegen
-cd QobuzShell
+cd Rosin
 xcodegen generate
-open QobuzShell.xcodeproj
+open Rosin.xcodeproj
 ```
 
 Set your signing team in the target's Signing & Capabilities tab, then run.
@@ -32,7 +32,7 @@ Change them in `Sources/MainMenu.swift`.
 
 Edit `Resources/custom.css` and press ⌘⇧R. In Debug builds the file is read from
 the project folder, so no rebuild is needed. For a Release build, drop a
-`custom.css` into `~/Library/Application Support/QobuzShell/` to override the
+`custom.css` into `~/Library/Application Support/Rosin/` to override the
 bundled one.
 
 ## Custom fonts
@@ -51,10 +51,10 @@ bundled one.
 
 ## Debugging
 
-Safari ▸ Develop ▸ [your Mac] ▸ QobuzShell opens the Web Inspector on the app.
-In the console, `QobuzShell.state()` shows what the menubar sees and
-`QobuzShell.selectors` lists the selectors in use. Messages from the page script
-show up in Console.app, prefixed `[QobuzShell/page]`.
+Safari ▸ Develop ▸ [your Mac] ▸ Rosin opens the Web Inspector on the app.
+In the console, `Rosin.state()` shows what the menubar sees and
+`Rosin.selectors` lists the selectors in use. Messages from the page script
+show up in Console.app, prefixed `[Rosin/page]`.
 
 ## Notes
 

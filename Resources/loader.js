@@ -1,7 +1,7 @@
-// QobuzShell loader. Runs inside the Qobuz desktop app (Electron).
+// Rosin loader. Runs inside the Qobuz desktop app (Electron).
 //
 // The companion app patches Qobuz's app.html with one <script> that require()s
-// this file from ~/Library/Application Support/QobuzShell/. The page has Node
+// this file from ~/Library/Application Support/Rosin/. The page has Node
 // integration (nodeIntegration: true, contextIsolation: false), so this runs
 // with full Node access: keep it to our own files.
 //
@@ -13,18 +13,18 @@
 //    commands back (newline-delimited JSON both ways);
 //  - adds keyboard shortcuts (see SHORTCUTS).
 //
-// window.QobuzShell exposes state(), selectors and the commands for debugging.
+// window.Rosin exposes state(), selectors and the commands for debugging.
 
 /* eslint-env node, browser */
 (() => {
-  if (window.QobuzShell) return;
+  if (window.Rosin) return;
 
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
   const net = require('net');
 
-  const SUPPORT_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'QobuzShell');
+  const SUPPORT_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'Rosin');
 
   // ---------------------------------------------------------------------------
   // SELECTORS. Taken from the desktop app's bundle.js (8.3.0). Qobuz uses
@@ -87,7 +87,7 @@
   };
   const log = (...parts) => {
     const message = parts.map(String).join(' ');
-    console.log('[QobuzShell]', message);
+    console.log('[Rosin]', message);
     send({ type: 'log', message });
   };
 
@@ -122,7 +122,7 @@
     }
     if (!styleElement) {
       styleElement = document.createElement('style');
-      styleElement.id = 'qobuz-shell-styles';
+      styleElement.id = 'rosin-styles';
     }
     styleElement.textContent = css;
     // Last in <head> so it wins over main.css at equal specificity.
@@ -155,7 +155,7 @@
   // itself (through the CSSOM: no copy of the sheet, nothing to keep in sync
   // with Qobuz updates). custom.css can then recolour them all at once:
   //
-  //   :root { --qobuz-shell-accent: #e05a00; --qobuz-shell-accent-hover: #ff7a1a; }
+  //   :root { --rosin-accent: #e05a00; --rosin-accent-hover: #ff7a1a; }
   //
   // The dark theme's accent, #ffcb74, is also --color-brand-60 in main.css,
   // which the newer components use; set both to recolour it everywhere.
@@ -166,9 +166,9 @@
   // Translucent uses (rgba(0,112,239,.3)) keep their alpha.
   // ---------------------------------------------------------------------------
   const ACCENTS = [
-    { rgb: '0, 112, 239', hex: '#0070ef', variable: '--qobuz-shell-accent' },
-    { rgb: '0, 172, 255', hex: '#00acff', variable: '--qobuz-shell-accent-hover' },
-    { rgb: '255, 203, 116', hex: '#ffcb74', variable: '--qobuz-shell-accent-dark' },
+    { rgb: '0, 112, 239', hex: '#0070ef', variable: '--rosin-accent' },
+    { rgb: '0, 172, 255', hex: '#00acff', variable: '--rosin-accent-hover' },
+    { rgb: '255, 203, 116', hex: '#ffcb74', variable: '--rosin-accent-dark' },
   ];
   const accentPattern = new RegExp(`rgba?\\((${ACCENTS.map((a) => a.rgb).join('|')})(?:, ([\\d.]+))?\\)`, 'g');
   const accentValue = (rgb, alpha) => {
@@ -232,8 +232,8 @@
     }
   };
 
-  // A class to scope CSS to QobuzShell.
-  document.documentElement.classList.add('qobuz-shell');
+  // A class to scope CSS to Rosin.
+  document.documentElement.classList.add('rosin');
   reloadStyles();
   watchCSS();
 
@@ -400,19 +400,19 @@
       if (!socket.destroyed) socket.write(JSON.stringify(readState()) + '\n');
     }, 100);
   });
-  server.on('error', (e) => console.error('[QobuzShell] socket error:', e));
+  server.on('error', (e) => console.error('[Rosin] socket error:', e));
   try {
     fs.mkdirSync(socketDir, { recursive: true });
     // Left behind if Qobuz quit without closing it; listen() fails otherwise.
     fs.rmSync(socketPath, { force: true });
     server.listen(socketPath);
   } catch (e) {
-    console.error('[QobuzShell] socket setup failed:', e);
+    console.error('[Rosin] socket setup failed:', e);
   }
   window.addEventListener('beforeunload', () => {
     server.close();
     cssWatcher?.close();
   });
 
-  window.QobuzShell = { ...commands, state: readState, selectors: SELECTORS, socketPath };
+  window.Rosin = { ...commands, state: readState, selectors: SELECTORS, socketPath };
 })();

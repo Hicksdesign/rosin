@@ -1,14 +1,14 @@
 import Foundation
 
 /// The files the patched Qobuz app loads, all in
-/// ~/Library/Application Support/QobuzShell/:
+/// ~/Library/Application Support/Rosin/:
 ///
 ///   loader.js     copied from this app on every launch (the patch require()s it)
 ///   config.json   where loader.js finds custom.css and the fonts, and whether to apply them
 ///   sockets/      one Unix socket per running Qobuz app (created by loader.js)
 ///
 /// custom.css and Fonts/ are looked up in this order (first match wins):
-///   1. ~/Library/Application Support/QobuzShell/   — your own overrides, no rebuild needed
+///   1. ~/Library/Application Support/Rosin/   — your own overrides, no rebuild needed
 ///   2. <project>/Resources/                          — Debug builds only, so edits apply live
 ///   3. The app bundle                                — what ships in the built app
 enum SupportFiles {
@@ -17,7 +17,7 @@ enum SupportFiles {
 
     static var directory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("QobuzShell", isDirectory: true)
+            .appendingPathComponent("Rosin", isDirectory: true)
     }
 
     static var socketsDirectory: URL { directory.appendingPathComponent("sockets", isDirectory: true) }
@@ -71,7 +71,7 @@ enum SupportFiles {
 
             // loader.js is code, not a user override, so it isn't read from 1.
             guard let loader = firstExisting("loader.js", in: [sourceResourcesDirectory, bundleDirectory]) else {
-                NSLog("[QobuzShell] loader.js not found")
+                NSLog("[Rosin] loader.js not found")
                 return
             }
             let loaderDestination = directory.appendingPathComponent("loader.js")
@@ -80,7 +80,7 @@ enum SupportFiles {
 
             writeConfig()
         } catch {
-            NSLog("[QobuzShell] Installing support files failed: \(error.localizedDescription)")
+            NSLog("[Rosin] Installing support files failed: \(error.localizedDescription)")
         }
     }
 
@@ -97,7 +97,7 @@ enum SupportFiles {
         do {
             try encoder.encode(config).write(to: directory.appendingPathComponent("config.json"), options: .atomic)
         } catch {
-            NSLog("[QobuzShell] Writing config.json failed: \(error.localizedDescription)")
+            NSLog("[Rosin] Writing config.json failed: \(error.localizedDescription)")
         }
     }
 }

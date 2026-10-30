@@ -37,12 +37,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         super.init()
         buildMenu()
         menu.delegate = self
-        statusItem.autosaveName = "QobuzShell.track"
+        statusItem.autosaveName = "Rosin.track"
         statusItem.menu = menu
         statusItem.button?.imagePosition = .imageLeading
 
         // No menu, so a click runs the action instead of opening one.
-        playButtonItem.autosaveName = "QobuzShell.playPause"
+        playButtonItem.autosaveName = "Rosin.playPause"
         playButtonItem.button?.target = self
         playButtonItem.button?.action = #selector(togglePlayPause)
 
@@ -87,7 +87,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(patchSectionStart)
         // Patch status goes here (menuNeedsUpdate).
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit QobuzShell", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Rosin", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
     private func actionItem(_ title: String, _ action: Selector, symbol: String? = nil) -> NSMenuItem {

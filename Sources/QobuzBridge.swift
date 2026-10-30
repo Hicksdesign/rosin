@@ -15,7 +15,7 @@ struct NowPlaying: Equatable {
 }
 
 /// Link to loader.js running in each patched Qobuz app, over the Unix sockets
-/// it creates in Application Support/QobuzShell/sockets/.
+/// it creates in Application Support/Rosin/sockets/.
 ///  - Swift → page: `call("togglePlay")` sends {"command": "togglePlay"}.
 ///  - Page → Swift: {"type": "nowPlaying" | "log", ...}.
 /// Both directions are newline-delimited JSON.
@@ -23,8 +23,8 @@ struct NowPlaying: Equatable {
 /// If both Qobuz and Qobuz Beta are running, the menubar follows whichever is
 /// playing, or else whichever changed track most recently.
 final class QobuzBridge {
-    static let nowPlayingDidChange = Notification.Name("QobuzShell.nowPlayingDidChange")
-    static let connectionsDidChange = Notification.Name("QobuzShell.connectionsDidChange")
+    static let nowPlayingDidChange = Notification.Name("Rosin.nowPlayingDidChange")
+    static let connectionsDidChange = Notification.Name("Rosin.connectionsDidChange")
 
     private final class Connection {
         let name: String
@@ -91,7 +91,7 @@ final class QobuzBridge {
             guard let self, let connection else { return }
             switch state {
             case .ready:
-                NSLog("[QobuzShell] Connected to \(name)")
+                NSLog("[Rosin] Connected to \(name)")
                 self.sendImmersiveSetting(to: connection)
                 NotificationCenter.default.post(name: Self.connectionsDidChange, object: self)
             case .failed, .cancelled, .waiting:
@@ -156,7 +156,7 @@ final class QobuzBridge {
             }
             updateNowPlaying()
         case "log":
-            NSLog("[QobuzShell/\(connection.name)] \(body["message"] as? String ?? "")")
+            NSLog("[Rosin/\(connection.name)] \(body["message"] as? String ?? "")")
         default:
             break
         }
@@ -194,7 +194,7 @@ final class QobuzBridge {
         guard var data = try? JSONSerialization.data(withJSONObject: message) else { return }
         data.append(UInt8(ascii: "\n"))
         connection.nw.send(content: data, completion: .contentProcessed { error in
-            if let error { NSLog("[QobuzShell] Send to \(connection.name) failed: \(error)") }
+            if let error { NSLog("[Rosin] Send to \(connection.name) failed: \(error)") }
         })
     }
 }

@@ -1,4 +1,4 @@
-# QobuzShell
+# Rosin
 
 A personal macOS menubar companion for the **Qobuz desktop app** (Electron). It
 patches Qobuz to load a script that adds custom CSS/fonts and keyboard shortcuts
@@ -9,6 +9,9 @@ It used to wrap the Qobuz web player in a `WKWebView`; that version is on the
 `web-wrapper` branch. It was dropped because the web player lacks the desktop
 app's audio options (Qobuz Connect speakers, hi-res output).
 
+It was called QobuzShell until October 2026. Patcher still recognises the old
+`qobuz-shell-loader` patch and replaces it, so Qobuz never runs both loaders.
+
 ## Build
 
 The Xcode project is generated from `project.yml` with XcodeGen; don't hand-edit the
@@ -17,23 +20,23 @@ The Xcode project is generated from `project.yml` with XcodeGen; don't hand-edit
 ```sh
 brew install xcodegen      # once
 xcodegen generate          # after adding/removing files or changing project.yml
-xcodebuild -project QobuzShell.xcodeproj -scheme QobuzShell -configuration Debug build
+xcodebuild -project Rosin.xcodeproj -scheme Rosin -configuration Debug build
 ```
 
 Target: macOS 14+, Swift 5.10, AppKit (no SwiftUI). Menubar-only (`LSUIElement`).
-Not sandboxed — see the comment in `Resources/QobuzShell.entitlements` for why.
+Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 
 ## Layout
 
 | File | Role |
 |---|---|
 | `Sources/AppDelegate.swift` | Entry point; installs support files, starts the patcher, bridge and menubar item |
-| `Sources/SupportFiles.swift` | Copies `loader.js` and writes `config.json` into `~/Library/Application Support/QobuzShell/` |
+| `Sources/SupportFiles.swift` | Copies `loader.js` and writes `config.json` into `~/Library/Application Support/Rosin/` |
 | `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html`; re-patches after updates; restarts Qobuz |
 | `Sources/QobuzBridge.swift` | Unix-socket client for each running loader; `NowPlaying` model; posts `nowPlayingDidChange` |
 | `Sources/StatusItemController.swift` | Menubar item: track, artwork, play/pause/next/previous, settings, patch status |
-| `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, state reporting, commands, shortcuts |
-| `Resources/custom.css` | User styles |
+| `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, accent variables, full-size immersive cover, state reporting, commands, shortcuts |
+| `Resources/custom.css` | User styles; sets the `--rosin-accent*` colours |
 | `Resources/Fonts/fonts.json` | Font manifest: `[{ "family", "file", "weight", "style" }]`. Currently Jacket Sans variable (WOFF2, roman + italic) |
 
 ## How it works
@@ -42,9 +45,9 @@ Not sandboxed — see the comment in `Resources/QobuzShell.entitlements` for why
   `app.asar`), and the integrity fuses are off (`EnableEmbeddedAsarIntegrityValidation`,
   `OnlyLoadAppFromAsar`), so an edited `app.html` loads. The main window has
   `nodeIntegration: true, contextIsolation: false` and a wide-open CSP.
-- **The patch:** one `<script id="qobuz-shell-loader">` before
+- **The patch:** one `<script id="rosin-loader">` before
   `<script src="/bundle.js">` that `require()`s
-  `~/Library/Application Support/QobuzShell/loader.js`. Everything else lives
+  `~/Library/Application Support/Rosin/loader.js`. Everything else lives
   outside the bundle, so updates only lose that one line.
 - **Re-patching:** the bundle is replaced on every update. Patcher re-patches
   when a Qobuz app launches and every 60s. If it patched an app that was already
@@ -52,16 +55,35 @@ Not sandboxed — see the comment in `Resources/QobuzShell.entitlements` for why
 - **Paths:** `config.json` gives loader.js the paths to `custom.css` and `Fonts/`:
   Application Support overrides, else the project's `Resources/` in Debug, else
   the app bundle. loader.js watches the CSS file's folder and re-applies on save.
-- **Bridge:** loader.js listens on `Application Support/QobuzShell/sockets/<App Name>.sock`
+- **Use Custom Theme** (menu setting, on by default): saved in UserDefaults and
+  passed as `theme` in `config.json`, so Qobuz starts with the right look before
+  the bridge connects. Toggling rewrites the config and sends `reloadStyles`.
+  Off means no custom.css, fonts or accent variables; the cover upgrade,
+  shortcuts and reporting stay on.
+- **Accent colours:** `legacy.css` hard-codes Qobuz's accents (~300 places,
+  no variables). loader.js rewrites each use in the loaded sheet via the CSSOM
+  to `var(--rosin-accent…, <original>)`; translucent uses become
+  `rgb(from var(…) r g b / α)`, so any colour syntax works in the variable.
+  The CSSOM serialises colours as `rgb(0, 112, 239)` and shorthands as
+  longhands, which is what `ACCENTS` matches. `#0070ef` → `--rosin-accent`,
+  `#00acff` (hover) → `--rosin-accent-hover`, `#ffcb74` (dark theme, also
+  `--color-brand-60` in main.css) → `--rosin-accent-dark`. main.css already
+  uses variables throughout.
+- **Immersive cover:** Qobuz uses the 600px `release.image.large`; loader.js
+  layers the CDN's `_max.jpg` (the full-size master, e.g. 3000px) over it.
+  There's no size in between (`_1200` 404s); `_org` is the raw upload.
+- **Bridge:** loader.js listens on `Application Support/Rosin/sockets/<App Name>.sock`
   (`Qobuz.sock`, `Qobuz Beta.sock`). Newline-delimited JSON:
   page → Swift `{type: "nowPlaying" | "log", ...}`, Swift → page `{command, argument}`.
   The bridge scans for new sockets every 2s.
 - **Playback:** the audio engine is native (`juce.node` in the main process), so
   the page has no media element and no Media Session. State and control come
   from the player bar, which reflects every output, Qobuz Connect included.
-- **Debugging:** `window.QobuzShell.state()` and friends in the page console.
+- **Debugging:** `window.Rosin.state()` and friends in the page console.
   Getting a console: Qobuz has a `toggleDevTools` window method, but its trigger
-  isn't known yet. Launching with `--remote-debugging-port` is the fallback.
+  isn't known yet. Launching with `--remote-debugging-port=9222` is the
+  fallback; then `http://127.0.0.1:9222/json` lists the page, and a small Node
+  script can run `Runtime.evaluate` over its WebSocket to test code live.
 
 ## Status
 
@@ -73,6 +95,8 @@ Done:
 2. Writing into the bundles worked without an App Management prompt on this Mac.
 3. Menubar play/pause/next/previous and the ⌘F, ⌘←/→, ⌘[/] and Escape shortcuts work.
 4. The immersive view shows the full-size (`_max.jpg`) cover.
+5. Use Custom Theme toggles CSS, fonts and accents live.
+6. Accent variables recolour legacy.css (tested live: 421 declarations).
 
 To verify:
 
@@ -82,6 +106,7 @@ To verify:
 To do:
 
 - App icon in `Resources/Assets.xcassets/AppIcon.appiconset`.
+- Rewrite `README.md`: it still describes the old web-player wrapper.
 - Find what triggers Qobuz's `toggleDevTools`, for an easy page console.
 
 Gotchas found so far:
@@ -102,7 +127,7 @@ Gotchas found so far:
   sends and hangs up straight away used to be dropped about 1 time in 6:
   the loader's greeting hit EPIPE and Node discarded the unread command.
   The greeting is now delayed 100ms. To script commands, e.g.
-  `printf '{"command":"reload"}\n' | nc -U ~/Library/Application\ Support/QobuzShell/sockets/Qobuz.sock`.
+  `printf '{"command":"reload"}\n' | nc -U ~/Library/Application\ Support/Rosin/sockets/Qobuz.sock`.
 
 ## Ideas, not yet done
 
@@ -115,4 +140,5 @@ Gotchas found so far:
   should query Qobuz's DOM directly. Take selectors from Qobuz's `bundle.js`
   (`Contents/Resources/app/node_modules/@qobuz/qobuz-dwp-ui/dist/`) where possible.
 - Keep every in-app shortcut in `SHORTCUTS` in `loader.js`.
+- Keep every hard-coded Qobuz colour that gets a variable in `ACCENTS` in `loader.js`.
 - Explain the reasoning when making fixes, not just the change.

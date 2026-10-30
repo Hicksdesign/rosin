@@ -4,7 +4,7 @@
 <dict>
 	<!--
 	The app is deliberately NOT sandboxed. It has to write into the Qobuz app
-	bundles (Patcher), share ~/Library/Application Support/QobuzShell/ with the
+	bundles (Patcher), share ~/Library/Application Support/Rosin/ with the
 	loader running inside Qobuz, and in Debug builds point that loader at
 	custom.css and fonts in the project folder. None of that works sandboxed.
 	-->
