@@ -34,6 +34,9 @@ final class Patcher {
         case failed(String)
     }
 
+    /// The failure reason when macOS refuses the write (see describe).
+    static let permissionReason = "Needs App Management permission"
+
     /// The marker id lets patch() spot an existing patch and unpatch() remove it.
     private static let marker = "rosin-loader"
     private static let snippet = """
@@ -60,6 +63,21 @@ final class Patcher {
     private var timer: Timer?
     /// Apps restart() has quit, to open again once they've gone (by bundle ID).
     private var pendingRelaunch: Set<String> = []
+    /// Apps patched while running, so still on the unpatched page until they
+    /// restart (by bundle ID). Cleared when they quit.
+    private(set) var patchedWhileRunning: Set<String> = []
+
+    /// The apps that couldn't be patched or unpatched, and why.
+    var failures: [(app: QobuzApp, reason: String)] {
+        apps.compactMap { app in
+            if case .failed(let reason) = statuses[app.bundleID] { return (app, reason) }
+            return nil
+        }
+    }
+
+    var appsNeedingPermission: [QobuzApp] {
+        failures.filter { $0.reason == Self.permissionReason }.map(\.app)
+    }
 
     init() {
         let center = NSWorkspace.shared.notificationCenter
@@ -73,6 +91,7 @@ final class Patcher {
     @objc private func appLaunchedOrQuit(_ note: Notification) {
         let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
         guard let id = app?.bundleIdentifier, Self.bundleIDs.contains(id) else { return }
+        if note.name == NSWorkspace.didTerminateApplicationNotification { patchedWhileRunning.remove(id) }
         if note.name == NSWorkspace.didTerminateApplicationNotification, pendingRelaunch.remove(id) != nil,
            let app = apps.first(where: { $0.bundleID == id }) {
             NSWorkspace.shared.openApplication(at: app.url, configuration: .init())
@@ -97,10 +116,13 @@ final class Patcher {
         refresh()
     }
 
-    func unpatchAll() {
+    /// Returns the apps it couldn't unpatch, and why.
+    @discardableResult
+    func unpatchAll() -> [(app: QobuzApp, reason: String)] {
         autoPatch = false
         for app in apps { statuses[app.bundleID] = unpatch(app) }
         NotificationCenter.default.post(name: Self.didChange, object: self)
+        return failures
     }
 
     // MARK: Patching
@@ -126,6 +148,7 @@ final class Patcher {
             var patched = html
             patched.insert(contentsOf: Self.snippet + Self.separator, at: anchor.lowerBound)
             try patched.write(to: app.appHTML, atomically: true, encoding: .utf8)
+            if app.runningInstance != nil { patchedWhileRunning.insert(app.bundleID) }
             NSLog("[Rosin] Patched \(app.name)")
             return .patched
         } catch {
@@ -159,7 +182,7 @@ final class Patcher {
         let nsError = error as NSError
         let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
         if nsError.code == NSFileWriteNoPermissionError || underlying?.code == Int(EPERM) {
-            return "Needs App Management permission"
+            return permissionReason
         }
         return error.localizedDescription
     }

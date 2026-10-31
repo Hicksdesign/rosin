@@ -7,7 +7,9 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var patcher: Patcher!
     private var bridge: QobuzBridge!
+    private var updater: Updater!
     private var statusItemController: StatusItemController!
+    private var onboarding: Onboarding!
 
     static func main() {
         let app = NSApplication.shared
@@ -23,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SupportFiles.install()
         patcher = Patcher()
         bridge = QobuzBridge()
-        statusItemController = StatusItemController(bridge: bridge, patcher: patcher)
+        updater = Updater()
+        statusItemController = StatusItemController(bridge: bridge, patcher: patcher, updater: updater)
+        LoginItem.enableByDefault()
+        // After launch finishes, so the menubar item is already showing.
+        onboarding = Onboarding(patcher: patcher)
+        DispatchQueue.main.async { self.onboarding.run() }
     }
 }

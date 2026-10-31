@@ -35,10 +35,14 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 | `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html`; re-patches after updates; restarts Qobuz |
 | `Sources/QobuzBridge.swift` | Unix-socket client for each running loader; `NowPlaying` model; posts `nowPlayingDidChange` |
 | `Sources/StatusItemController.swift` | Menubar item: track, artwork, play/pause/next/previous, settings, patch status |
+| `Sources/Updater.swift` | Sparkle updates; off until `SPARKLE_FEED_URL` and `SPARKLE_PUBLIC_KEY` are set in `project.yml` |
+| `Sources/Onboarding.swift` | Launch alerts: first-run welcome (restart Qobuz if needed), and App Management with Try Again |
+| `Sources/LoginItem.swift` | Launch at Login via `SMAppService`; on by default on the first Release launch |
+| `Sources/Uninstaller.swift` | Uninstall Rosin…: unpatches, reloads Qobuz, deletes support files and settings, trashes the app |
 | `Sources/AccentPickerView.swift` | The Finder-style row of accent colour dots in the menu |
 | `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, accent variables, full-size immersive cover, state reporting, commands, shortcuts |
 | `Resources/custom.css` | User styles; sets the `--rosin-accent*` colours |
-| `Resources/Fonts/fonts.json` | Font manifest: `[{ "family", "file", "weight", "style" }]`. Currently Jacket Sans variable (WOFF2, roman + italic) |
+| `Resources/Fonts/fonts.json` | Font manifest: `[{ "family", "file", "weight", "style" }]`. Currently Jacket Sans variable (WOFF2, roman + italic), under the OFL (`OFL.txt`, shipped alongside) |
 
 ## How it works
 
@@ -116,6 +120,8 @@ To verify:
 
 To do:
 
+- Sparkle: generate the EdDSA keys, host an appcast, and fill in
+  `SPARKLE_FEED_URL` / `SPARKLE_PUBLIC_KEY` in `project.yml`.
 - App icon in `Resources/Assets.xcassets/AppIcon.appiconset`.
 - Rewrite `README.md`: it still describes the old web-player wrapper.
 - Find what triggers Qobuz's `toggleDevTools`, for an easy page console.

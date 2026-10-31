@@ -3,7 +3,7 @@ import AppKit
 /// The menubar items: one shows the current track (cover and title) with a
 /// menu of playback controls, settings and patch status; the other is a
 /// play/pause button that toggles playback directly.
-final class StatusItemController: NSObject, NSMenuDelegate {
+final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation {
     /// Set to false to show only the cover (or icon) in the menubar.
     static let showsTrackTitle = true
     static let maxTitleLength = 32
@@ -17,6 +17,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let bridge: QobuzBridge
     private let patcher: Patcher
+    private let updater: Updater
 
     private let menu = NSMenu()
     private let trackItem = NSMenuItem()
@@ -24,6 +25,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let playPauseItem = NSMenuItem()
     private let immersiveItem = NSMenuItem()
     private let themeItem = NSMenuItem()
+    private lazy var loginItem = actionItem("Launch at Login", #selector(toggleLaunchAtLogin))
+    private lazy var updateItem = actionItem("Check for Updates…", #selector(checkForUpdates))
     private static let themeTitle = "Use Custom Theme"
     private let accentPicker = AccentPickerView(alignedWith: StatusItemController.themeTitle)
     /// Patch status items are rebuilt each time the menu opens, after this one.
@@ -33,9 +36,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var artworkCache: [URL: NSImage] = [:]
     private var artworkTask: URLSessionDataTask?
 
-    init(bridge: QobuzBridge, patcher: Patcher) {
+    init(bridge: QobuzBridge, patcher: Patcher, updater: Updater) {
         self.bridge = bridge
         self.patcher = patcher
+        self.updater = updater
         super.init()
         buildMenu()
         menu.delegate = self
@@ -95,6 +99,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(patchSectionStart)
         // Patch status goes here (menuNeedsUpdate).
         menu.addItem(.separator())
+        menu.addItem(loginItem)
+        menu.addItem(updateItem)
+        menu.addItem(actionItem("Uninstall Rosin…", #selector(uninstall)))
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Rosin", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
@@ -110,7 +118,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         themeItem.state = SupportFiles.themeEnabled ? .on : .off
         accentPicker.accent = SupportFiles.accent
         accentPicker.isEnabled = SupportFiles.themeEnabled
+        loginItem.state = LoginItem.isEnabled ? .on : .off
+        updateItem.title = updater.updateAvailable ? "Update Available…" : "Check for Updates…"
         rebuildPatchSection()
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        // Off while a check is running, and in builds without a Sparkle feed.
+        item === updateItem ? updater.canCheckForUpdates : true
     }
 
     /// One line per installed Qobuz app, plus the matching action.
@@ -137,7 +152,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
                 item = infoItem("\(app.name): patched", symbol: "checkmark.circle")
             case .failed(let reason):
                 item = infoItem("\(app.name): \(reason)", symbol: "exclamationmark.triangle")
-                needsPermission = needsPermission || reason.contains("App Management")
+                needsPermission = needsPermission || reason == Patcher.permissionReason
             case .unpatched:
                 item = infoItem("\(app.name): not patched", symbol: "circle")
             }
@@ -318,6 +333,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func patch() { patcher.patchAll() }
     @objc private func unpatch() { patcher.unpatchAll() }
     @objc private func openAppManagementSettings() { Patcher.openAppManagementSettings() }
+    @objc private func toggleLaunchAtLogin() { LoginItem.setEnabled(!LoginItem.isEnabled) }
+    @objc private func checkForUpdates() { updater.checkForUpdates() }
+    @objc private func uninstall() { Uninstaller.run(patcher: patcher, bridge: bridge) }
 }
 
 private extension NSFont {
