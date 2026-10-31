@@ -32,7 +32,15 @@ final class AccentPickerView: NSView {
     private static let diameter: CGFloat = 13
     /// From one dot's left edge to the next.
     private static let pitch: CGFloat = 21
-    private static let rowHeight: CGFloat = 20
+    /// The ring around the current dot: its gap from the dot, and its width.
+    private static let ringGap: CGFloat = 3.5
+    private static let ringWidth: CGFloat = 1.5
+    /// How far the ring reaches beyond the dot.
+    private static let ringOutset = ringGap + ringWidth / 2
+    /// Space above the rings and between them and the caption.
+    private static let verticalPadding: CGFloat = 4
+    private static let dotY = verticalPadding + ringOutset
+    private static let captionY = dotY + diameter + ringOutset + verticalPadding
     private static let captionHeight: CGFloat = 16
     /// Where menu titles start, as measured on macOS 27; used until the real
     /// title has been found (see textInset).
@@ -56,7 +64,7 @@ final class AccentPickerView: NSView {
     init(alignedWith title: String) {
         alignedTitle = title
         let width = Self.defaultTextInset * 2 + Self.pitch * CGFloat(9)
-        super.init(frame: NSRect(x: 0, y: 0, width: width, height: Self.rowHeight + Self.captionHeight + 4))
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: Self.captionY + Self.captionHeight + Self.verticalPadding))
         autoresizingMask = .width
     }
 
@@ -108,7 +116,7 @@ final class AccentPickerView: NSView {
     private func rect(for index: Int) -> NSRect {
         let size = Self.diameter
         let x = textInset + Self.pitch * CGFloat(index)
-        return NSRect(x: x, y: (Self.rowHeight - size) / 2, width: size, height: size)
+        return NSRect(x: x, y: Self.dotY, width: size, height: size)
     }
 
     private func swatch(at point: NSPoint) -> Swatch? {
@@ -124,8 +132,8 @@ final class AccentPickerView: NSView {
             if swatch == hovered { dot = dot.insetBy(dx: -1.5, dy: -1.5) }
             draw(swatch, in: dot)
             if swatch == selected {
-                let ring = NSBezierPath(ovalIn: rect(for: index).insetBy(dx: -3.5, dy: -3.5))
-                ring.lineWidth = 1.5
+                let ring = NSBezierPath(ovalIn: rect(for: index).insetBy(dx: -Self.ringGap, dy: -Self.ringGap))
+                ring.lineWidth = Self.ringWidth
                 NSColor.labelColor.setStroke()
                 ring.stroke()
             }
@@ -136,7 +144,7 @@ final class AccentPickerView: NSView {
             .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
             .foregroundColor: NSColor.secondaryLabelColor,
         ]
-        (caption as NSString).draw(at: NSPoint(x: textInset, y: Self.rowHeight), withAttributes: attributes)
+        (caption as NSString).draw(at: NSPoint(x: textInset, y: Self.captionY), withAttributes: attributes)
     }
 
     private func draw(_ swatch: Swatch, in rect: NSRect) {
