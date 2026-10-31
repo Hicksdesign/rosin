@@ -1,4 +1,3 @@
-@charset "UTF-8";
 /*
  * Rosin is a Qobuz Theme and companion app by Hicks.design
  * Version 1.5
@@ -6,23 +5,6 @@
  * Loaded into the Qobuz desktop app by loader.js, and re-applied on save.
  * With a Debug build of Rosin, this file is read straight from
  * the project folder.
- *
- * To override without rebuilding a Release build, put a custom.css in
- * ~/Library/Application Support/Rosin/ — it takes priority over this one
- * (choose Rosin ▸ Reload Qobuz after adding it).
- *
- * html.rosin is added by loader.js; use it to scope rules to Rosin.
- */
-/* ---- Fonts ---------------------------------------------------------------
- * Register font files in Resources/Fonts/fonts.json, then use the family
- * name here. System-installed fonts can also be referenced by name.
- *
- * Registered: "Jacket Sans" variable, roman + italic, wght 400–800 (no Light).
- * Its opsz axis (14–32) is the Display cut; font-optical-sizing: auto (the
- * default) moves large text towards Display without any extra CSS.
- *
- * Qobuz's icons are an icon font set via icon-* and pct classes, so those
- * elements are skipped; otherwise the icons would render as letters.
  */
 html.rosin *:not([class*=icon-]):not([class*=pct]) {
   font-family: "Jacket Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
@@ -38,33 +20,24 @@ html.rosin *:not([class*=icon-]):not([class*=pct]) {
   --container-desktop-large: 100%;
 }
 
-h1, h2, h3,
-.BigStoryCard__title,
-.PageHeader__title,
-.StoryCard__title,
-.StoryHeading__title {
+html.rosin h1, html.rosin h2, html.rosin h3,
+html.rosin .BigStoryCard__title,
+html.rosin .PageHeader__title,
+html.rosin .StoryCard__title,
+html.rosin .StoryHeading__title {
   font-weight: 700;
   line-height: 1.1;
   font-variation-settings: "opsz" 32;
-  text-wrap: balance;
-  white-space-collapse: unset !important;
-}
-
-h1,
-h1.PageHeader__title {
-  letter-spacing: -0.03rem !important;
+  text-wrap: balance !important;
   overflow: unset;
 }
-
-.StoryHeading__title {
-  max-inline-size: 30ch !important;
-  -webkit-box-orient: unset !important;
-  -webkit-line-clamp: unset !important;
-  display: unset !important;
-  text-overflow: unset !important;
-  white-space: unset !important;
-  box-sizing: unset !important;
-  overflow: unset !important;
+html.rosin h1,
+html.rosin h1.PageHeader__title {
+  letter-spacing: -0.03rem;
+}
+html.rosin .StoryHeading__title {
+  max-inline-size: 30ch;
+  display: unset;
 }
 
 .BigStoryCard__label,
@@ -77,11 +50,12 @@ h1.PageHeader__title {
 /* Qobuz sans has a lighter appearance compared to most fonts */
 /* So other fonts appear too heavy */
 /* Take those heavier weights down a tad */
+.CreditsModal__description,
+.PageHeader__description,
 .StoryContainer__text {
   font-weight: 350;
 }
 
-/* now playing track title */
 /* restrict width of large text blocks, such as bios */
 .text-primary,
 .PageHeader__description,
@@ -98,19 +72,14 @@ h1.PageHeader__title {
 }
 
 /* Hide UI some elements */
-/* Playlist icon in add to playlist modal */
 /* Distracting yellow hi-res label */
-/* Autoplay toggle in fullscreen player */
-/* Logo in fullscreen player */
-/* Border in top nav */
-/* Sticky Headers */
 .album-card__hires,
 .after\:bg-separator-dark-exclusive::after,
 .global__button--add-to-playlist:before,
 .FullPlayer__nav,
-.FullPlayer__autoplay,
 .FullPlayer__logo,
-.icon-brand-medium:before,
+.FullPlayer__autoplay,
+.flex.items-center.min-w-0.overflow-hidden.flex-none.gap-24:has(use[href="/assets/images/sprite.svg#qobuz-icon-shufflePlay"]),
 .HeaderSticky,
 .popover > .arrow,
 .PlaylistPage .StickyHeader,
@@ -142,7 +111,6 @@ button.bt6:hover,
 button.bt6.blue,
 .CreditsTrack__player.pct-play:before,
 .CreditsTrack__player .SoundVisualizer,
-button.ui-block-button-round,
 .player__progressbar__cursor,
 .player__settings-control-playqueue-number,
 .global__button--add-to-playlist:hover {
@@ -213,7 +181,7 @@ img[src*=hires] {
   background-position: left;
   background-repeat: no-repeat;
   background-size: 1.25rem;
-  width: 7rem;
+  width: 1.25rem;
 }
 
 /* Hide artist and album coloured header background  */
@@ -233,7 +201,7 @@ img[src*=hires] {
 }
 .theme-dark .ui-module-navbar {
   background: unset;
-  background: linear-gradient(to bottom, rgba(18, 18, 18, 0.4) 25px, transparent 100%);
+  background: linear-gradient(to bottom, rgba(18, 18, 18, 0.5) 25px, transparent 100%);
 }
 .theme-dark .NavBar__arrows,
 .theme-dark .NavBar__items {
@@ -278,10 +246,6 @@ img[src*=hires] {
 }
 .theme-dark .SearchBar input:hover, .theme-dark .SearchBar input:focus, .theme-dark .SearchBar input:active, .theme-dark .search input:hover, .theme-dark .search input:focus, .theme-dark .search input:active {
   outline: 1px solid rgba(255, 255, 255, 0.6);
-}
-.theme-dark .NavBar__items .bg-surface-default-secondary {
-  color: var(--new-accent) !important;
-  background: rgba(18, 18, 18, 0.6) !important;
 }
 .theme-dark .Playqueue .ListItem.isPlaying .ListItem__title,
 .theme-dark .FullPlayer .ListItem.isPlaying .ListItem__title {
@@ -367,17 +331,26 @@ img[src*=hires] {
   height: calc(100vh - 300px);
 }
 
-/* Allow for bottom player */
-.ui-scroll {
-  padding-block: 60px 96px;
+.ui-block-nav-item.cursor-default {
+  background: rgba(255, 255, 255, 0.0823529412) !important;
 }
 
+.bg-surface-default-secondary, .bg-surface-default-secondary\/5 {
+  background-color: unset;
+}
+
+.ui-section-library-sidebar,
+.ui-section-collection-header,
+.ui-layout--root--container {
+  padding-top: 50px;
+}
+
+/* Allow for bottom player */
 /* Back/Forward Arrows */
 .NavBar__arrows {
   border: unset;
   padding: 0;
   gap: 2px;
-  margin-inline-start: 6px;
   display: inline-flex;
   width: max-content;
   border-radius: var(--component-height);
