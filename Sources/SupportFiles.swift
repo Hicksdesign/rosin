@@ -4,7 +4,7 @@ import Foundation
 /// ~/Library/Application Support/Rosin/:
 ///
 ///   loader.js     copied from this app on every launch (the patch require()s it)
-///   config.json   where loader.js finds custom.css and the fonts, and whether to apply them
+///   config.json   where loader.js finds custom.css and the fonts, whether to apply them, and the accent
 ///   sockets/      one Unix socket per running Qobuz app (created by loader.js)
 ///
 /// custom.css and Fonts/ are looked up in this order (first match wins):
@@ -54,12 +54,24 @@ enum SupportFiles {
         }
     }
 
+    /// The accent colour picked in the menu, as "#rrggbb", or nil to use
+    /// custom.css's. Only applies with the theme on.
+    private static let accentKey = "accent"
+    static var accent: String? {
+        get { UserDefaults.standard.string(forKey: accentKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: accentKey)
+            writeConfig()
+        }
+    }
+
     // MARK: Install
 
     private struct Config: Encodable {
         var css: String?
         var fonts: String?
         var theme: Bool
+        var accent: String?
     }
 
     /// Copies loader.js and writes config.json. Run at launch and before
@@ -90,7 +102,8 @@ enum SupportFiles {
         let config = Config(
             css: firstExisting("custom.css", in: dirs)?.path,
             fonts: firstExisting("Fonts/fonts.json", in: dirs)?.deletingLastPathComponent().path,
-            theme: themeEnabled
+            theme: themeEnabled,
+            accent: accent
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]

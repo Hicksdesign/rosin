@@ -35,6 +35,7 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 | `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html`; re-patches after updates; restarts Qobuz |
 | `Sources/QobuzBridge.swift` | Unix-socket client for each running loader; `NowPlaying` model; posts `nowPlayingDidChange` |
 | `Sources/StatusItemController.swift` | Menubar item: track, artwork, play/pause/next/previous, settings, patch status |
+| `Sources/AccentPickerView.swift` | The Finder-style row of accent colour dots in the menu |
 | `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, accent variables, full-size immersive cover, state reporting, commands, shortcuts |
 | `Resources/custom.css` | User styles; sets the `--rosin-accent*` colours |
 | `Resources/Fonts/fonts.json` | Font manifest: `[{ "family", "file", "weight", "style" }]`. Currently Jacket Sans variable (WOFF2, roman + italic) |
@@ -69,6 +70,14 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
   `#00acff` (hover) → `--rosin-accent-hover`, `#ffcb74` (dark theme, also
   `--color-brand-60` in main.css) → `--rosin-accent-dark`. main.css already
   uses variables throughout.
+- **Accent picker:** a row of dots in the menu (Finder's tag colours, Theme
+  Default, and any colour via the colour panel). Saved in UserDefaults and
+  passed as `accent` (`#rrggbb`) in `config.json`. loader.js sets it inline on
+  `<html>`, overriding `custom.css`'s `:root` values for `--rosin-accent`,
+  `-dark` and `--color-brand-60`, with `-hover` a `color-mix` 15% lighter.
+  Theme Default clears it, so `custom.css` applies. Only with Use Custom Theme
+  on. Clicks keep the menu open and send `setAccent`, which only sets the
+  variables, so the colour changes straight away.
 - **Immersive cover:** Qobuz uses the 600px `release.image.large`; loader.js
   layers the CDN's `_max.jpg` (the full-size master, e.g. 3000px) over it.
   There's no size in between (`_1200` 404s); `_org` is the raw upload.
@@ -101,6 +110,8 @@ Done:
 To verify:
 
 - The `playing` state on a Connect output; Open Immersive View on Play.
+- The accent picker in the menu (the inline variables were tested live; the
+  menu view, and changes reaching Qobuz while the menu is open, weren't).
 - Re-patching after a real Qobuz update.
 
 To do:
@@ -123,7 +134,9 @@ Gotchas found so far:
   and forward click the nav bar arrows (`icon-arrow-navigation-back`/`-forward`).
   In general, prefer clicking Qobuz's own controls over browser APIs.
 - Reloading the page (Reload Qobuz) does load a changed loader.js; there's no
-  `require` cache problem (tested). Commands from a client that connects,
+  `require` cache problem (tested). Relaunching Rosin copies the new loader.js
+  but doesn't reload Qobuz, so the page keeps the old one: a new command then
+  logs `unknown command` until Reload Qobuz. Commands from a client that connects,
   sends and hangs up straight away used to be dropped about 1 time in 6:
   the loader's greeting hit EPIPE and Node discarded the unread command.
   The greeting is now delayed 100ms. To script commands, e.g.

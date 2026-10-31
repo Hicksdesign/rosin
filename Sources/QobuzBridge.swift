@@ -182,8 +182,10 @@ final class QobuzBridge {
     }
 
     /// Runs a command in every connected app.
-    func callAll(_ command: String) {
-        for connection in connections.values { send(["command": command], to: connection) }
+    func callAll(_ command: String, argument: Any? = nil) {
+        var message: [String: Any] = ["command": command]
+        message["argument"] = argument
+        for connection in connections.values { send(message, to: connection) }
     }
 
     private func sendImmersiveSetting(to connection: Connection) {

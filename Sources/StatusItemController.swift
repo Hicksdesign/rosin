@@ -24,6 +24,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let playPauseItem = NSMenuItem()
     private let immersiveItem = NSMenuItem()
     private let themeItem = NSMenuItem()
+    private static let themeTitle = "Use Custom Theme"
+    private let accentPicker = AccentPickerView(alignedWith: StatusItemController.themeTitle)
     /// Patch status items are rebuilt each time the menu opens, after this one.
     private let patchSectionStart = NSMenuItem.separator()
 
@@ -76,10 +78,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         immersiveItem.action = #selector(toggleOpenImmersiveOnPlay)
         immersiveItem.target = self
         menu.addItem(immersiveItem)
-        themeItem.title = "Use Custom Theme"
+        themeItem.title = Self.themeTitle
         themeItem.action = #selector(toggleTheme)
         themeItem.target = self
         menu.addItem(themeItem)
+        // Part of the theme setting: straight under it, no separator.
+        let accentItem = NSMenuItem()
+        accentItem.view = accentPicker
+        accentPicker.onPick = { [weak self] accent in self?.setAccent(accent) }
+        accentPicker.onCustom = { [weak self] in self?.showColourPanel() }
+        menu.addItem(accentItem)
         menu.addItem(.separator())
 
         menu.addItem(actionItem("Show Qobuz", #selector(showQobuz)))
@@ -100,6 +108,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         immersiveItem.state = bridge.opensImmersiveOnPlay ? .on : .off
         themeItem.state = SupportFiles.themeEnabled ? .on : .off
+        accentPicker.accent = SupportFiles.accent
+        accentPicker.isEnabled = SupportFiles.themeEnabled
         rebuildPatchSection()
     }
 
@@ -251,6 +261,33 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func toggleTheme() {
         SupportFiles.themeEnabled.toggle()
         bridge.callAll("reloadStyles")
+    }
+
+    /// Saves the accent and sends it to each running Qobuz. setAccent only
+    /// sets the colour variables, so it's quick enough to send as the colour
+    /// panel is dragged; the saved config covers Qobuz launches and reloads.
+    private func setAccent(_ accent: String?) {
+        SupportFiles.accent = accent
+        bridge.callAll("setAccent", argument: accent)
+    }
+
+    /// The colour panel is a window, so the menu closes first. Rosin is a
+    /// menubar app, so it has to come forward for the panel to take clicks.
+    private func showColourPanel() {
+        menu.cancelTracking()
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        if let accent = SupportFiles.accent, let colour = NSColor(hex: accent) { panel.color = colour }
+        panel.setTarget(self)
+        panel.setAction(#selector(colourPanelChanged(_:)))
+        panel.isContinuous = true
+        NSApp.activate()
+        panel.orderFront(nil)
+    }
+
+    @objc private func colourPanelChanged(_ panel: NSColorPanel) {
+        guard let hex = panel.color.hexString, hex != SupportFiles.accent else { return }
+        setAccent(hex)
     }
 
     /// Brings forward the Qobuz app the menubar is following, or any running

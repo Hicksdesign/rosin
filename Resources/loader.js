@@ -92,8 +92,8 @@
   };
 
   // The companion writes config.json with the paths to use (the project's
-  // Resources folder in Debug builds, the app bundle or overrides otherwise)
-  // and `theme`, its Use Custom Theme setting.
+  // Resources folder in Debug builds, the app bundle or overrides otherwise),
+  // `theme`, its Use Custom Theme setting, and `accent`, its accent colour.
   const readConfig = () => {
     try {
       return JSON.parse(fs.readFileSync(path.join(SUPPORT_DIR, 'config.json'), 'utf8'));
@@ -206,11 +206,32 @@
     accentChanges = [];
   };
 
+  // The accent picked in the companion's menu: config.accent, a hex colour, or
+  // unset for custom.css's own. Set inline on <html>, which beats custom.css's
+  // :root rule, so the pick wins and custom.css is the fallback. Hover is a
+  // lighter mix of it; the dark theme uses it as is. Only with the theme on.
+  const USER_ACCENT_VARIABLES = ['--rosin-accent', '--rosin-accent-hover', '--rosin-accent-dark', '--color-brand-60'];
+  const applyUserAccent = () => {
+    const root = document.documentElement.style;
+    const accent = themeEnabled() && /^#[0-9a-f]{6}$/i.test(config.accent || '') ? config.accent : null;
+    if (!accent) { USER_ACCENT_VARIABLES.forEach((v) => root.removeProperty(v)); return; }
+    root.setProperty('--rosin-accent', accent);
+    root.setProperty('--rosin-accent-hover', `color-mix(in srgb, ${accent}, white 15%)`);
+    root.setProperty('--rosin-accent-dark', accent);
+    root.setProperty('--color-brand-60', accent);
+  };
+  // Sent as the colour changes, so just the variables, not a full reload.
+  const setAccent = (accent) => {
+    config.accent = accent || undefined;
+    applyUserAccent();
+  };
+
   const reloadStyles = () => {
     config = readConfig();
     applyFonts();
     applyCSS();
     if (themeEnabled()) applyAccents(); else removeAccents();
+    applyUserAccent();
   };
 
   // Re-apply custom.css whenever it's saved. Editors usually save by writing a
@@ -334,6 +355,7 @@
     togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles,
     reload: () => location.reload(),
     setOpenImmersiveOnPlay: (on) => { openImmersiveOnPlay = !!on; },
+    setAccent,
   };
 
   // ---------------------------------------------------------------------------
