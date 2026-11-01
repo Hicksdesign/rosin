@@ -37,10 +37,34 @@ targets:
           - "Info.plist"
           - "Rosin.entitlements"
           - "Fonts/**"
+          # Compiled by the script below, for Patcher to install in Qobuz
+          - "Qobuz.icon"
+          - "Qobuz.icon/**"
       # Folder reference, so the bundle gets a real Fonts/ directory
       - path: Resources/Fonts
         type: folder
         buildPhase: resources
+    postCompileScripts:
+      # Qobuz.icon is the icon Patcher gives Qobuz. actool compiles it to an
+      # Assets.car (the Liquid Glass icon, found via CFBundleIconName) in
+      # Rosin's Resources/QobuzIcon/, for Patcher to copy into Qobuz. It also
+      # writes a flat .icns, which Patcher doesn't need. Every file written
+      # must be listed under outputFiles (ENABLE_USER_SCRIPT_SANDBOXING).
+      - name: Compile Qobuz Icon
+        script: |
+          set -e
+          out="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/QobuzIcon"
+          mkdir -p "$out"
+          xcrun actool "$SRCROOT/Resources/Qobuz.icon" --compile "$out" \
+            --platform macosx --minimum-deployment-target 10.15 --app-icon Qobuz \
+            --output-partial-info-plist "$DERIVED_FILE_DIR/QobuzIcon-Info.plist" \
+            --output-format human-readable-text --notices --warnings --errors
+        inputFiles:
+          - $(SRCROOT)/Resources/Qobuz.icon
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/QobuzIcon/Assets.car
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/QobuzIcon/Qobuz.icns
+          - $(DERIVED_FILE_DIR)/QobuzIcon-Info.plist
     dependencies:
       - package: Sparkle
     settings:
@@ -51,7 +75,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Resources/Rosin.entitlements
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: RQH65SH9L5
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: Rosin
         ENABLE_HARDENED_RUNTIME: YES
         GENERATE_INFOPLIST_FILE: NO
         # Sparkle updates (Info.plist's SUFeedURL and SUPublicEDKey). While

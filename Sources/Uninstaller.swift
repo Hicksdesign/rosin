@@ -2,8 +2,8 @@ import AppKit
 
 /// Undoes everything Rosin has added to this Mac, then quits:
 ///
-///   1. Removes the patch from each Qobuz app's app.html (Patcher.unpatchAll),
-///      and the login item.
+///   1. Removes the patch from each Qobuz app's app.html and its icon
+///      (Patcher.unpatchAll), and the login item.
 ///   2. Reloads each open Qobuz, which re-reads the unpatched app.html, so its
 ///      styles and shortcuts go without a restart.
 ///   3. Deletes Application Support/Rosin (and the old QobuzShell folder),

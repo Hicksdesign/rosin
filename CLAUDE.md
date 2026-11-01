@@ -32,7 +32,7 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 |---|---|
 | `Sources/AppDelegate.swift` | Entry point; installs support files, starts the patcher, bridge and menubar item |
 | `Sources/SupportFiles.swift` | Copies `loader.js` and writes `config.json` into `~/Library/Application Support/Rosin/` |
-| `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html`; re-patches after updates; restarts Qobuz |
+| `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html` and Rosin's icon for Qobuz; re-patches after updates; restarts Qobuz |
 | `Sources/QobuzBridge.swift` | Unix-socket client for each running loader; `NowPlaying` model; posts `nowPlayingDidChange` |
 | `Sources/StatusItemController.swift` | Menubar item: track, artwork, play/pause/next/previous, settings, patch status |
 | `Sources/Updater.swift` | Sparkle updates; off until `SPARKLE_FEED_URL` and `SPARKLE_PUBLIC_KEY` are set in `project.yml` |
@@ -42,6 +42,9 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 | `Sources/AccentPickerView.swift` | The Finder-style row of accent colour dots in the menu |
 | `Scripts/release.sh` | After exporting a notarized build: checks it, zips it into `~/Herd/rosin/releases/`, runs `generate_appcast`, lists what to upload |
 | `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, accent variables, full-size immersive cover, state reporting, commands, shortcuts |
+| `Resources/Rosin.icon` | Rosin's app icon (Icon Composer; `ASSETCATALOG_COMPILER_APPICON_NAME: Rosin`) |
+| `Resources/Qobuz.icon` | The icon Patcher gives Qobuz. Not a resource: the Compile Qobuz Icon build phase runs `actool` on it into `Resources/QobuzIcon/Assets.car` |
+| `Resources/Assets.xcassets` | `MenuBar`: the menubar icon (template PDF) shown when there's no cover |
 | `Resources/custom.css` | User styles; sets the `--rosin-accent*` colours |
 | `Resources/Fonts/fonts.json` | Font manifest: `[{ "family", "file", "weight", "style" }]`. Currently Jacket Sans variable (WOFF2, roman + italic), under the OFL (`OFL.txt`, shipped alongside) |
 
@@ -55,6 +58,14 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
   `<script src="/bundle.js">` that `require()`s
   `~/Library/Application Support/Rosin/loader.js`. Everything else lives
   outside the bundle, so updates only lose that one line.
+- **Qobuz's icon:** Patcher copies `QobuzIcon/Assets.car` into Qobuz's
+  `Contents/Resources/` and adds `CFBundleIconName = Qobuz` and
+  `RosinIcon = true` to its `Info.plist`. Qobuz's own `icon.icns`
+  (`CFBundleIconFile`) is untouched; macOS prefers the asset catalog icon.
+  `RosinIcon` marks it as Rosin's, so unpatching only removes its own, and a
+  Qobuz that ships its own asset catalog is left alone. Finder updates
+  straight away (Launch Services re-registration); a running Qobuz keeps its
+  old Dock icon until it restarts.
 - **Re-patching:** the bundle is replaced on every update. Patcher re-patches
   when a Qobuz app launches and every 60s. If it patched an app that was already
   running, the menu offers "Restart to Apply".
@@ -123,7 +134,6 @@ To do:
 
 - Sparkle: generate the EdDSA keys, host an appcast, and fill in
   `SPARKLE_FEED_URL` / `SPARKLE_PUBLIC_KEY` in `project.yml`.
-- App icon in `Resources/Assets.xcassets/AppIcon.appiconset`.
 - Rewrite `README.md`: it still describes the old web-player wrapper.
 - Find what triggers Qobuz's `toggleDevTools`, for an easy page console.
 

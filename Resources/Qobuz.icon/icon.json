@@ -1,0 +1,90 @@
+{
+  "fill" : {
+    "automatic-gradient" : "srgb:0.03136,0.08008,0.12563,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "SVG Image 7.svg",
+          "name" : "SVG Image 7"
+        },
+        {
+          "image-name" : "SVG Image 5.svg",
+          "name" : "SVG Image 5",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              18.097245859575764,
+              -2.17232431494665
+            ]
+          }
+        },
+        {
+          "image-name" : "SVG Image 9.svg",
+          "name" : "SVG Image 9",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -10.584554139537886,
+              -12.525431870881675
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "image-name" : "SVG Image 9.svg",
+          "name" : "SVG Image 9",
+          "opacity" : 0.35,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -10.584554139537886,
+              -6.5
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "image-name" : "SVG Image 9.svg",
+          "name" : "SVG Image 9",
+          "opacity" : 0.35,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -10.584554139537886,
+              -8.5
+            ]
+          }
+        }
+      ],
+      "position" : {
+        "scale" : 1.16,
+        "translation-in-points" : [
+          12,
+          5
+        ]
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

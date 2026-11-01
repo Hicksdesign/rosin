@@ -8,6 +8,8 @@ struct QobuzApp: Equatable {
     /// "Qobuz" or "Qobuz Beta". Also names its socket (see loader.js).
     var name: String { url.deletingPathExtension().lastPathComponent }
     var appHTML: URL { url.appendingPathComponent("Contents/Resources/app/app.html") }
+    var infoPlist: URL { url.appendingPathComponent("Contents/Info.plist") }
+    var assetCatalog: URL { url.appendingPathComponent("Contents/Resources/Assets.car") }
     var runningInstance: NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
     }
@@ -21,6 +23,9 @@ struct QobuzApp: Equatable {
 /// are off, so an edited app.html just loads. Each update replaces the whole
 /// bundle, so the patch is re-applied whenever a Qobuz app launches and once a
 /// minute.
+///
+/// It also swaps Qobuz's icon for Rosin's (see installIcon), re-applied the
+/// same way.
 ///
 /// Writing into another app's bundle needs the App Management permission
 /// (System Settings ▸ Privacy & Security). Without it, writes fail with EPERM
@@ -140,6 +145,7 @@ final class Patcher {
             let html = Self.removing(Self.oldSnippets, from: original)
             if html.contains(Self.marker) {
                 if html != original { try html.write(to: app.appHTML, atomically: true, encoding: .utf8) }
+                try installIcon(app)
                 return .patched
             }
             guard let anchor = Self.anchors.compactMap({ html.range(of: $0) }).first else {
@@ -150,6 +156,7 @@ final class Patcher {
             try patched.write(to: app.appHTML, atomically: true, encoding: .utf8)
             if app.runningInstance != nil { patchedWhileRunning.insert(app.bundleID) }
             NSLog("[Rosin] Patched \(app.name)")
+            try installIcon(app)
             return .patched
         } catch {
             return .failed(Self.describe(error))
@@ -161,9 +168,11 @@ final class Patcher {
             let html = try String(contentsOf: app.appHTML, encoding: .utf8)
             // Undo exactly what patch() inserted.
             let restored = Self.removing([Self.snippet] + Self.oldSnippets, from: html)
-            guard restored != html else { return .unpatched }
-            try restored.write(to: app.appHTML, atomically: true, encoding: .utf8)
-            NSLog("[Rosin] Unpatched \(app.name)")
+            if restored != html {
+                try restored.write(to: app.appHTML, atomically: true, encoding: .utf8)
+                NSLog("[Rosin] Unpatched \(app.name)")
+            }
+            try removeIcon(app)
             return .unpatched
         } catch {
             return .failed(Self.describe(error))
@@ -176,6 +185,88 @@ final class Patcher {
             html.replacingOccurrences(of: snippet + separator, with: "")
                 .replacingOccurrences(of: snippet, with: "")
         }
+    }
+
+    // MARK: Icon
+
+    /// Rosin's icon for Qobuz: Resources/Qobuz.icon, compiled by the Compile
+    /// Qobuz Icon build phase (see project.yml).
+    private static let bundledIcon = Bundle.main.url(forResource: "Assets", withExtension: "car", subdirectory: "QobuzIcon")
+    private static let iconName = "Qobuz"
+    /// Added to Qobuz's Info.plist alongside CFBundleIconName, so removeIcon
+    /// only ever removes an icon Rosin installed.
+    private static let iconMarker = "RosinIcon"
+
+    /// Gives Qobuz Rosin's icon: copies the compiled asset catalog into its
+    /// Resources and names the icon in CFBundleIconName.
+    ///
+    /// Qobuz only has a flat icon.icns (CFBundleIconFile), which stays as it
+    /// is: macOS prefers the asset catalog icon when there is one, and that's
+    /// the one with Liquid Glass and the dark, tinted and clear looks. If a
+    /// future Qobuz ships its own asset catalog, it's left alone.
+    ///
+    /// The Info.plist edit doesn't make Qobuz's signature any worse: the
+    /// app.html patch already breaks its resource seal, and macOS only checks
+    /// that on first launch of a downloaded copy.
+    private func installIcon(_ app: QobuzApp) throws {
+        guard let source = Self.bundledIcon else { return }
+        let fm = FileManager.default
+        var info = try Self.readInfo(app)
+        let ours = info[Self.iconMarker] as? Bool == true
+        if !ours, info["CFBundleIconName"] != nil || fm.fileExists(atPath: app.assetCatalog.path) { return }
+
+        var changed = false
+        if !fm.contentsEqual(atPath: source.path, andPath: app.assetCatalog.path) {
+            try Data(contentsOf: source).write(to: app.assetCatalog, options: .atomic)
+            changed = true
+        }
+        if !ours || info["CFBundleIconName"] as? String != Self.iconName {
+            info["CFBundleIconName"] = Self.iconName
+            info[Self.iconMarker] = true
+            try Self.writeInfo(info, to: app)
+            changed = true
+        }
+        if changed {
+            Self.refreshIcon(app)
+            NSLog("[Rosin] Installed icon in \(app.name)")
+        }
+    }
+
+    /// Undoes installIcon, leaving Qobuz on its own icon.icns. The Info.plist
+    /// goes first, so a failure part-way never names an icon that isn't there.
+    private func removeIcon(_ app: QobuzApp) throws {
+        var info = try Self.readInfo(app)
+        guard info[Self.iconMarker] as? Bool == true else { return }
+        info["CFBundleIconName"] = nil
+        info[Self.iconMarker] = nil
+        try Self.writeInfo(info, to: app)
+        if FileManager.default.fileExists(atPath: app.assetCatalog.path) {
+            try FileManager.default.removeItem(at: app.assetCatalog)
+        }
+        Self.refreshIcon(app)
+        NSLog("[Rosin] Removed icon from \(app.name)")
+    }
+
+    private static func readInfo(_ app: QobuzApp) throws -> [String: Any] {
+        let data = try Data(contentsOf: app.infoPlist)
+        guard let info = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            throw CocoaError(.propertyListReadCorrupt)
+        }
+        return info
+    }
+
+    private static func writeInfo(_ info: [String: Any], to app: QobuzApp) throws {
+        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        try data.write(to: app.infoPlist, options: .atomic)
+    }
+
+    /// Finder and the Dock cache app icons. Touching the bundle and
+    /// re-registering it with Launch Services makes them look again; a running
+    /// Qobuz keeps its old Dock icon until it restarts.
+    private static func refreshIcon(_ app: QobuzApp) {
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: app.url.path)
+        LSRegisterURL(app.url as CFURL, true)
+        NSWorkspace.shared.noteFileSystemChanged(app.url.path)
     }
 
     private static func describe(_ error: Error) -> String {

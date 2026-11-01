@@ -241,10 +241,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         artworkTask?.resume()
     }
 
-    /// Puts the cover in the menubar and the menu, or the note icon if there isn't one.
+    /// Puts the cover in the menubar and the menu, or Rosin's menubar icon if
+    /// there isn't one (MenuBar in Assets.xcassets, a template image).
     private func showArtwork(_ cover: NSImage?) {
         guard let cover else {
-            statusItem.button?.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: "Qobuz")
+            let icon = NSImage(named: "MenuBar")
+            icon?.accessibilityDescription = "Qobuz"
+            statusItem.button?.image = icon
             trackItem.image = nil
             return
         }
