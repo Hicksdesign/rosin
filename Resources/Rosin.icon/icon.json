@@ -20,7 +20,7 @@
       "layers" : [
         {
           "image-name" : "SVG Image 4.svg",
-          "name" : "SVG Image 4",
+          "name" : "Top Highlight",
           "position" : {
             "scale" : 1.22,
             "translation-in-points" : [
@@ -34,7 +34,7 @@
           "glass" : false,
           "hidden" : false,
           "image-name" : "SVG Image 3.svg",
-          "name" : "SVG Image 3",
+          "name" : "Fill in light",
           "opacity" : 0.6,
           "position" : {
             "scale" : 1.2,
@@ -59,7 +59,7 @@
       "layers" : [
         {
           "image-name" : "SVG Image 2.svg",
-          "name" : "SVG Image 2",
+          "name" : "Glyph",
           "position" : {
             "scale" : 1.04,
             "translation-in-points" : [
@@ -69,20 +69,8 @@
           }
         },
         {
-          "hidden" : true,
-          "image-name" : "SVG Image.svg",
-          "name" : "SVG Image",
-          "position" : {
-            "scale" : 1.04,
-            "translation-in-points" : [
-              33.98446999999999,
-              7.938750000000027
-            ]
-          }
-        },
-        {
-          "image-name" : "SVG Image 5.svg",
-          "name" : "SVG Image 5"
+          "image-name" : "SVG Image 6.svg",
+          "name" : "Rings"
         }
       ],
       "shadow" : {
