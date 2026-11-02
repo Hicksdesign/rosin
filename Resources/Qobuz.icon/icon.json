@@ -6,30 +6,28 @@
     {
       "layers" : [
         {
-          "glass" : false,
-          "hidden" : true,
-          "image-name" : "SVG Image 7.svg",
-          "name" : "SVG Image 7"
-        },
-        {
-          "image-name" : "SVG Image 5.svg",
-          "name" : "SVG Image 5",
+          "image-name" : "SVG Image.svg",
+          "name" : "SVG Image",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              18.097245859575764,
-              -2.17232431494665
+              20.097245859575764,
+              2.82767568505335
             ]
           }
         },
         {
-          "image-name" : "SVG Image 9.svg",
-          "name" : "SVG Image 9",
+          "fill" : {
+            "solid" : "srgb:0.00000,0.00000,0.00000,1.00000"
+          },
+          "glass" : true,
+          "image-name" : "SVG Image 2.svg",
+          "name" : "SVG Image 2",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              -10.584554139537886,
-              -12.525431870881675
+              -10,
+              -14
             ]
           }
         },
@@ -37,29 +35,15 @@
           "fill" : {
             "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
           },
-          "image-name" : "SVG Image 9.svg",
-          "name" : "SVG Image 9",
-          "opacity" : 0.35,
+          "glass" : true,
+          "image-name" : "SVG Image 2.svg",
+          "name" : "SVG Image 2",
+          "opacity" : 0.4,
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              -10.584554139537886,
-              -6.5
-            ]
-          }
-        },
-        {
-          "fill" : {
-            "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
-          },
-          "image-name" : "SVG Image 9.svg",
-          "name" : "SVG Image 9",
-          "opacity" : 0.35,
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              -10.584554139537886,
-              -8.5
+              -10,
+              -10
             ]
           }
         }
