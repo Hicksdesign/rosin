@@ -84,13 +84,15 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
   The CSSOM serialises colours as `rgb(0, 112, 239)` and shorthands as
   longhands, which is what `ACCENTS` matches. `#0070ef` → `--rosin-accent`,
   `#00acff` (hover) → `--rosin-accent-hover`, `#ffcb74` (dark theme, also
-  `--color-brand-60` in main.css) → `--rosin-accent-dark`. main.css already
-  uses variables throughout.
+  `--color-brand-60` in main.css) → `--rosin-accent-dark`, `#f5a623` (the
+  player while a hi-res track plays: `.hires` progress bar, volume, queue
+  count; also awards) → `--rosin-accent-hires`. main.css already uses
+  variables throughout.
 - **Accent picker:** a row of dots in the menu (Finder's tag colours, Theme
   Default, and any colour via the colour panel). Saved in UserDefaults and
   passed as `accent` (`#rrggbb`) in `config.json`. loader.js sets it inline on
   `<html>`, overriding `custom.css`'s `:root` values for `--rosin-accent`,
-  `-dark` and `--color-brand-60`, with `-hover` a `color-mix` 15% lighter.
+  `-dark`, `-hires` and `--color-brand-60`, with `-hover` a `color-mix` 15% lighter.
   Theme Default clears it, so `custom.css` applies. Only with Use Custom Theme
   on. Clicks keep the menu open and send `setAccent`, which only sets the
   variables, so the colour changes straight away.

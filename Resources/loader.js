@@ -159,6 +159,8 @@
   //
   // The dark theme's accent, #ffcb74, is also --color-brand-60 in main.css,
   // which the newer components use; set both to recolour it everywhere.
+  // #f5a623 is the player's accent while a hi-res track plays (.hires
+  // progress bar, volume, queue count, shuffle/repeat), and awards.
   //
   // Each variable falls back to Qobuz's own colour, so an unset one changes
   // nothing. The CSSOM serialises colours as rgb(0, 112, 239), whatever the
@@ -169,6 +171,7 @@
     { rgb: '0, 112, 239', hex: '#0070ef', variable: '--rosin-accent' },
     { rgb: '0, 172, 255', hex: '#00acff', variable: '--rosin-accent-hover' },
     { rgb: '255, 203, 116', hex: '#ffcb74', variable: '--rosin-accent-dark' },
+    { rgb: '245, 166, 35', hex: '#f5a623', variable: '--rosin-accent-hires' },
   ];
   const accentPattern = new RegExp(`rgba?\\((${ACCENTS.map((a) => a.rgb).join('|')})(?:, ([\\d.]+))?\\)`, 'g');
   const accentValue = (rgb, alpha) => {
@@ -210,7 +213,7 @@
   // unset for custom.css's own. Set inline on <html>, which beats custom.css's
   // :root rule, so the pick wins and custom.css is the fallback. Hover is a
   // lighter mix of it; the dark theme uses it as is. Only with the theme on.
-  const USER_ACCENT_VARIABLES = ['--rosin-accent', '--rosin-accent-hover', '--rosin-accent-dark', '--color-brand-60'];
+  const USER_ACCENT_VARIABLES = ['--rosin-accent', '--rosin-accent-hover', '--rosin-accent-dark', '--rosin-accent-hires', '--color-brand-60'];
   const applyUserAccent = () => {
     const root = document.documentElement.style;
     const accent = themeEnabled() && /^#[0-9a-f]{6}$/i.test(config.accent || '') ? config.accent : null;
@@ -218,6 +221,7 @@
     root.setProperty('--rosin-accent', accent);
     root.setProperty('--rosin-accent-hover', `color-mix(in srgb, ${accent}, white 15%)`);
     root.setProperty('--rosin-accent-dark', accent);
+    root.setProperty('--rosin-accent-hires', accent);
     root.setProperty('--color-brand-60', accent);
   };
   // Sent as the colour changes, so just the variables, not a full reload.
