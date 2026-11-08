@@ -34,6 +34,7 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 | `Sources/SupportFiles.swift` | Copies `loader.js` and writes `config.json` into `~/Library/Application Support/Rosin/` |
 | `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html` and Rosin's icon for Qobuz; re-patches after updates; restarts Qobuz |
 | `Sources/QobuzBridge.swift` | Unix-socket client for each running loader; `NowPlaying` model; posts `nowPlayingDidChange` |
+| `Sources/MediaKeys.swift` | Now Playing info and media keys (`MPRemoteCommandCenter`), forwarded to the bridge |
 | `Sources/StatusItemController.swift` | Menubar item: track, artwork, play/pause/next/previous, settings, patch status |
 | `Sources/Updater.swift` | Sparkle updates; off until `SPARKLE_FEED_URL` and `SPARKLE_PUBLIC_KEY` are set in `project.yml` |
 | `Sources/Onboarding.swift` | Launch alerts: first-run welcome (restart Qobuz if needed), and App Management with Try Again |
@@ -111,6 +112,13 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 - **Playback:** the audio engine is native (`juce.node` in the main process), so
   the page has no media element and no Media Session. State and control come
   from the player bar, which reflects every output, Qobuz Connect included.
+- **Media keys:** Qobuz registers them with Electron's `globalShortcut`, which
+  on macOS only works with Accessibility permission (Qobuz asks once, with
+  "never ask me again"), and publishes no Now Playing info. So Rosin becomes
+  the Now Playing app (`MediaKeys.swift`): it publishes the track and play
+  state and forwards the media keys, AirPods and Control Center to the bridge.
+  No permission needed. With no track it clears its info so the keys go to
+  other apps.
 - **Debugging:** `window.Rosin.state()` and friends in the page console.
   Getting a console: Qobuz has a `toggleDevTools` window method, but its trigger
   isn't known yet. Launching with `--remote-debugging-port=9222` is the
@@ -136,6 +144,8 @@ To verify:
 - The accent picker in the menu (the inline variables were tested live; the
   menu view, and changes reaching Qobuz while the menu is open, weren't).
 - Re-patching after a real Qobuz update.
+- Media keys, AirPods and Control Center reaching Qobuz through Rosin; and,
+  if Qobuz has Accessibility permission, that a press isn't handled twice.
 
 To do:
 
@@ -168,8 +178,7 @@ Gotchas found so far:
 
 ## Ideas, not yet done
 
-- Global hotkeys in the companion (Qobuz already handles the media keys itself,
-  via `globalShortcut`, so don't register those).
+- Global hotkeys for other actions (show Qobuz, search, favourite).
 
 ## Conventions
 

@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var bridge: QobuzBridge!
     private var updater: Updater!
     private var statusItemController: StatusItemController!
+    private var mediaKeys: MediaKeys!
     private var onboarding: Onboarding!
 
     static func main() {
@@ -27,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bridge = QobuzBridge()
         updater = Updater()
         statusItemController = StatusItemController(bridge: bridge, patcher: patcher, updater: updater)
+        mediaKeys = MediaKeys(bridge: bridge)
         LoginItem.enableByDefault()
         // After launch finishes, so the menubar item is already showing.
         onboarding = Onboarding(patcher: patcher)
