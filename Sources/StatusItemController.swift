@@ -27,7 +27,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     private let menu = NSMenu()
     private let trackItem = NSMenuItem()
     private let detailItem = NSMenuItem()
-    private let playPauseItem = NSMenuItem()
+    private let playbackControls = PlaybackControlsView()
     private let immersiveItem = NSMenuItem()
     private lazy var trackInfoItem = actionItem("Show Track Information", #selector(toggleTrackInfo))
     private let themeItem = NSMenuItem()
@@ -76,11 +76,16 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         }
         menu.addItem(.separator())
 
-        playPauseItem.action = #selector(togglePlayPause)
-        playPauseItem.target = self
-        menu.addItem(playPauseItem)
-        menu.addItem(actionItem("Next Track", #selector(nextTrack), symbol: "forward.fill"))
-        menu.addItem(actionItem("Previous Track", #selector(previousTrack), symbol: "backward.fill"))
+        let controlsItem = NSMenuItem()
+        controlsItem.view = playbackControls
+        playbackControls.onControl = { [weak self] control in
+            switch control {
+            case .previous: self?.previousTrack()
+            case .playPause: self?.togglePlayPause()
+            case .next: self?.nextTrack()
+            }
+        }
+        menu.addItem(controlsItem)
         menu.addItem(.separator())
 
         // Settings rather than actions: the checkmark shows whether each is on.
@@ -222,8 +227,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         detailItem.title = detail
         detailItem.isHidden = detail.isEmpty
 
-        playPauseItem.title = np.isPlaying ? "Pause" : "Play"
-        playPauseItem.image = NSImage(systemSymbolName: np.isPlaying ? "pause.fill" : "play.fill", accessibilityDescription: nil)
+        playbackControls.isPlaying = np.isPlaying
 
         loadArtwork(np.artworkURL)
     }

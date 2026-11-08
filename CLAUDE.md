@@ -41,6 +41,7 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 | `Sources/LoginItem.swift` | Launch at Login via `SMAppService`; on by default on the first Release launch |
 | `Sources/Uninstaller.swift` | Uninstall Rosin…: unpatches, reloads Qobuz, deletes support files and settings, trashes the app |
 | `Sources/AccentPickerView.swift` | The Finder-style row of accent colour dots in the menu |
+| `Sources/PlaybackControlsView.swift` | The menu's row of previous / play-pause / next icons |
 | `Scripts/release.sh` | After exporting a notarized build: checks it, zips it into `~/Herd/rosin/releases/`, runs `generate_appcast`, lists what to upload |
 | `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, accent variables, full-size immersive cover, state reporting, commands, shortcuts |
 | `Resources/Rosin.icon` | Rosin's app icon (Icon Composer; `ASSETCATALOG_COMPILER_APPICON_NAME: Rosin`) |
