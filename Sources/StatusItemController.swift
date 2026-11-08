@@ -4,8 +4,13 @@ import AppKit
 /// menu of playback controls, settings and patch status; the other is a
 /// play/pause button that toggles playback directly.
 final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation {
-    /// Set to false to show only the cover (or icon) in the menubar.
-    static let showsTrackTitle = true
+    /// Show Track Information: the cover and title in the menubar. Off
+    /// leaves just Rosin's icon next to the play/pause button. On by default.
+    private static let showsTrackInfoKey = "showsTrackInfo"
+    private var showsTrackInfo: Bool {
+        get { UserDefaults.standard.object(forKey: Self.showsTrackInfoKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: Self.showsTrackInfoKey) }
+    }
     static let maxTitleLength = 32
     static let menubarArtworkSize: CGFloat = 18
     static let menuArtworkSize: CGFloat = 40
@@ -24,6 +29,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     private let detailItem = NSMenuItem()
     private let playPauseItem = NSMenuItem()
     private let immersiveItem = NSMenuItem()
+    private lazy var trackInfoItem = actionItem("Show Track Information", #selector(toggleTrackInfo))
     private let themeItem = NSMenuItem()
     private lazy var loginItem = actionItem("Launch at Login", #selector(toggleLaunchAtLogin))
     private lazy var updateItem = actionItem("Check for Updates…", #selector(checkForUpdates))
@@ -78,6 +84,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         menu.addItem(.separator())
 
         // Settings rather than actions: the checkmark shows whether each is on.
+        menu.addItem(trackInfoItem)
         immersiveItem.title = "Open Fullscreen Player on Play"
         immersiveItem.action = #selector(toggleOpenImmersiveOnPlay)
         immersiveItem.target = self
@@ -114,6 +121,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        trackInfoItem.state = showsTrackInfo ? .on : .off
         immersiveItem.state = bridge.opensImmersiveOnPlay ? .on : .off
         themeItem.state = SupportFiles.themeEnabled ? .on : .off
         accentPicker.accent = SupportFiles.accent
@@ -190,7 +198,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     private func update(with np: NowPlaying) {
         guard let button = statusItem.button else { return }
 
-        if Self.showsTrackTitle, np.hasTrack {
+        if showsTrackInfo, np.hasTrack {
             let text = np.artist.isEmpty ? np.title : "\(np.title) – \(np.artist)"
             button.title = " " + truncated(text)
         } else {
@@ -245,14 +253,20 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     /// there isn't one (MenuBar in Assets.xcassets, a template image).
     private func showArtwork(_ cover: NSImage?) {
         guard let cover else {
-            let icon = NSImage(named: "MenuBar")
-            icon?.accessibilityDescription = "Qobuz"
-            statusItem.button?.image = icon
+            statusItem.button?.image = Self.menubarIcon
             trackItem.image = nil
             return
         }
-        statusItem.button?.image = Self.thumbnail(of: cover, size: Self.menubarArtworkSize, cornerRadius: 3)
+        statusItem.button?.image = showsTrackInfo
+            ? Self.thumbnail(of: cover, size: Self.menubarArtworkSize, cornerRadius: 3)
+            : Self.menubarIcon
         trackItem.image = Self.thumbnail(of: cover, size: Self.menuArtworkSize, cornerRadius: 4)
+    }
+
+    private static var menubarIcon: NSImage? {
+        let icon = NSImage(named: "MenuBar")
+        icon?.accessibilityDescription = "Qobuz"
+        return icon
     }
 
     /// A square, rounded copy of the cover. Drawn on demand, so it stays sharp on any display.
@@ -269,6 +283,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     @objc private func togglePlayPause() { bridge.call("togglePlay") }
     @objc private func nextTrack() { bridge.call("next") }
     @objc private func previousTrack() { bridge.call("previous") }
+
+    @objc private func toggleTrackInfo() {
+        showsTrackInfo.toggle()
+        update(with: bridge.nowPlaying)
+    }
 
     @objc private func toggleOpenImmersiveOnPlay() {
         bridge.opensImmersiveOnPlay.toggle()
