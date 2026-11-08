@@ -14,7 +14,6 @@ html.rosin *:not([class*=icon-]):not([class*=pct]) {
   --rosin-accent: hsl(35, 90%, 60%);
   --rosin-accent-hover: hsl(35, 90%, 68%);
   --rosin-accent-dark: var(--rosin-accent);
-  --rosin-accent-hires: var(--rosin-accent);
   --color-brand-60: var(--rosin-accent-dark);
   --fullscreen: 73dvh;
   --component-height: 36px;
