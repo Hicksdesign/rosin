@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 
 /// One installed Qobuz desktop app (release or beta).
 struct QobuzApp: Equatable {
@@ -9,7 +10,6 @@ struct QobuzApp: Equatable {
     var name: String { url.deletingPathExtension().lastPathComponent }
     var appHTML: URL { url.appendingPathComponent("Contents/Resources/app/app.html") }
     var infoPlist: URL { url.appendingPathComponent("Contents/Info.plist") }
-    var assetCatalog: URL { url.appendingPathComponent("Contents/Resources/Assets.car") }
     var runningInstance: NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
     }
@@ -41,6 +41,10 @@ final class Patcher {
 
     /// The failure reason when macOS refuses the write (see describe).
     static let permissionReason = "Needs App Management permission"
+
+    /// The failure reason for a Qobuz whose Info.plist an earlier Rosin edited
+    /// (see hasBrokenSignature).
+    static let brokenSignatureReason = "Needs reinstalling (an older Rosin broke it)"
 
     /// The marker id lets patch() spot an existing patch and unpatch() remove it.
     private static let marker = "rosin-loader"
@@ -140,6 +144,7 @@ final class Patcher {
     }
 
     private func patch(_ app: QobuzApp) -> Status {
+        if Self.hasBrokenSignature(app) { return .failed(Self.brokenSignatureReason) }
         do {
             let original = try String(contentsOf: app.appHTML, encoding: .utf8)
             let html = Self.removing(Self.oldSnippets, from: original)
@@ -189,84 +194,78 @@ final class Patcher {
 
     // MARK: Icon
 
-    /// Rosin's icon for Qobuz: Resources/Qobuz.icon, compiled by the Compile
-    /// Qobuz Icon build phase (see project.yml).
-    private static let bundledIcon = Bundle.main.url(forResource: "Assets", withExtension: "car", subdirectory: "QobuzIcon")
-    private static let iconName = "Qobuz"
-    /// Added to Qobuz's Info.plist alongside CFBundleIconName, so removeIcon
-    /// only ever removes an icon Rosin installed.
-    private static let iconMarker = "RosinIcon"
+    /// Rosin's icon for Qobuz: Resources/Qobuz.icon, compiled to a flat .icns
+    /// by the Compile Qobuz Icon build phase (see project.yml).
+    private static let bundledIcon = Bundle.main.url(forResource: "Qobuz", withExtension: "icns", subdirectory: "QobuzIcon")
+    /// An extended attribute on Qobuz's bundle folder holding a hash of the
+    /// icon Rosin installed, so installIcon can tell when it's out of date and
+    /// removeIcon only ever removes an icon Rosin installed.
+    private static let iconMarker = "design.hicks.Rosin.icon"
+    /// Earlier versions put the icon in Qobuz's Info.plist under this key.
+    private static let legacyIconKey = "RosinIcon"
 
-    /// Gives Qobuz Rosin's icon: copies the compiled asset catalog into its
-    /// Resources and names the icon in CFBundleIconName.
+    /// Gives Qobuz Rosin's icon as a Finder custom icon, the same as pasting
+    /// one in Get Info: an `Icon\r` file at the top of the bundle, which the
+    /// Dock shows too.
     ///
-    /// Qobuz only has a flat icon.icns (CFBundleIconFile), which stays as it
-    /// is: macOS prefers the asset catalog icon when there is one, and that's
-    /// the one with Liquid Glass and the dark, tinted and clear looks. If a
-    /// future Qobuz ships its own asset catalog, it's left alone.
-    ///
-    /// The Info.plist edit doesn't make Qobuz's signature any worse: the
-    /// app.html patch already breaks its resource seal, and macOS only checks
-    /// that on first launch of a downloaded copy.
+    /// It can't be the asset catalog icon (Liquid Glass, dark, tinted), because
+    /// that needs CFBundleIconName in Qobuz's Info.plist. Info.plist's hash is
+    /// part of the executable's own signature, which macOS checks on every
+    /// launch, so editing it stops Qobuz opening (once the cached check goes,
+    /// e.g. after a restart). The custom icon sits outside what the signature
+    /// covers. A custom icon that isn't Rosin's is left alone.
     private func installIcon(_ app: QobuzApp) throws {
         guard let source = Self.bundledIcon else { return }
-        let fm = FileManager.default
-        var info = try Self.readInfo(app)
-        let ours = info[Self.iconMarker] as? Bool == true
-        if !ours, info["CFBundleIconName"] != nil || fm.fileExists(atPath: app.assetCatalog.path) { return }
+        let data = try Data(contentsOf: source)
+        let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let marker = Self.iconMarker(of: app)
+        if marker == hash { return }
+        if marker == nil, Self.hasCustomIcon(app) { return }
 
-        var changed = false
-        if !fm.contentsEqual(atPath: source.path, andPath: app.assetCatalog.path) {
-            try Data(contentsOf: source).write(to: app.assetCatalog, options: .atomic)
-            changed = true
+        guard let icon = NSImage(data: data), NSWorkspace.shared.setIcon(icon, forFile: app.url.path) else {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: app.url.path])
         }
-        if !ours || info["CFBundleIconName"] as? String != Self.iconName {
-            info["CFBundleIconName"] = Self.iconName
-            info[Self.iconMarker] = true
-            try Self.writeInfo(info, to: app)
-            changed = true
-        }
-        if changed {
-            Self.refreshIcon(app)
-            NSLog("[Rosin] Installed icon in \(app.name)")
-        }
+        try Self.setIconMarker(hash, on: app)
+        NSLog("[Rosin] Installed icon in \(app.name)")
     }
 
-    /// Undoes installIcon, leaving Qobuz on its own icon.icns. The Info.plist
-    /// goes first, so a failure part-way never names an icon that isn't there.
+    /// Undoes installIcon, leaving Qobuz on its own icon.
     private func removeIcon(_ app: QobuzApp) throws {
-        var info = try Self.readInfo(app)
-        guard info[Self.iconMarker] as? Bool == true else { return }
-        info["CFBundleIconName"] = nil
-        info[Self.iconMarker] = nil
-        try Self.writeInfo(info, to: app)
-        if FileManager.default.fileExists(atPath: app.assetCatalog.path) {
-            try FileManager.default.removeItem(at: app.assetCatalog)
-        }
-        Self.refreshIcon(app)
+        guard Self.iconMarker(of: app) != nil else { return }
+        NSWorkspace.shared.setIcon(nil, forFile: app.url.path)
+        try Self.setIconMarker(nil, on: app)
         NSLog("[Rosin] Removed icon from \(app.name)")
     }
 
-    private static func readInfo(_ app: QobuzApp) throws -> [String: Any] {
-        let data = try Data(contentsOf: app.infoPlist)
-        guard let info = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
-            throw CocoaError(.propertyListReadCorrupt)
+    /// True if an earlier Rosin edited this Qobuz's Info.plist, which breaks
+    /// its signature for good: removing the keys doesn't give back the exact
+    /// file that was signed. Only reinstalling Qobuz fixes it.
+    private static func hasBrokenSignature(_ app: QobuzApp) -> Bool {
+        let info = NSDictionary(contentsOf: app.infoPlist)
+        return info?[legacyIconKey] != nil
+    }
+
+    private static func hasCustomIcon(_ app: QobuzApp) -> Bool {
+        FileManager.default.fileExists(atPath: app.url.appendingPathComponent("Icon\r").path)
+    }
+
+    private static func iconMarker(of app: QobuzApp) -> String? {
+        let size = getxattr(app.url.path, iconMarker, nil, 0, 0, 0)
+        guard size > 0 else { return nil }
+        var buffer = [UInt8](repeating: 0, count: size)
+        guard getxattr(app.url.path, iconMarker, &buffer, size, 0, 0) == size else { return nil }
+        return String(decoding: buffer, as: UTF8.self)
+    }
+
+    private static func setIconMarker(_ value: String?, on app: QobuzApp) throws {
+        let result: Int32
+        if let value {
+            result = setxattr(app.url.path, iconMarker, value, value.utf8.count, 0, 0)
+        } else {
+            result = removexattr(app.url.path, iconMarker, 0)
+            if result != 0, errno == ENOATTR { return }
         }
-        return info
-    }
-
-    private static func writeInfo(_ info: [String: Any], to app: QobuzApp) throws {
-        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
-        try data.write(to: app.infoPlist, options: .atomic)
-    }
-
-    /// Finder and the Dock cache app icons. Touching the bundle and
-    /// re-registering it with Launch Services makes them look again; a running
-    /// Qobuz keeps its old Dock icon until it restarts.
-    private static func refreshIcon(_ app: QobuzApp) {
-        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: app.url.path)
-        LSRegisterURL(app.url as CFURL, true)
-        NSWorkspace.shared.noteFileSystemChanged(app.url.path)
+        if result != 0 { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
     }
 
     private static func describe(_ error: Error) -> String {

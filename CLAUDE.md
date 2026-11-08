@@ -58,14 +58,19 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
   `<script src="/bundle.js">` that `require()`s
   `~/Library/Application Support/Rosin/loader.js`. Everything else lives
   outside the bundle, so updates only lose that one line.
-- **Qobuz's icon:** Patcher copies `QobuzIcon/Assets.car` into Qobuz's
-  `Contents/Resources/` and adds `CFBundleIconName = Qobuz` and
-  `RosinIcon = true` to its `Info.plist`. Qobuz's own `icon.icns`
-  (`CFBundleIconFile`) is untouched; macOS prefers the asset catalog icon.
-  `RosinIcon` marks it as Rosin's, so unpatching only removes its own, and a
-  Qobuz that ships its own asset catalog is left alone. Finder updates
-  straight away (Launch Services re-registration); a running Qobuz keeps its
-  old Dock icon until it restarts.
+- **Qobuz's icon:** Patcher sets `QobuzIcon/Qobuz.icns` as Qobuz's Finder
+  custom icon (`NSWorkspace.setIcon`, an `Icon\r` file at the bundle root),
+  which the Dock shows too; Qobuz never sets its Dock icon at runtime. An
+  extended attribute on the bundle (`design.hicks.Rosin.icon`, the icon's
+  hash) marks it as Rosin's, so it's updated when the icon changes, unpatching
+  only removes its own, and a custom icon someone else set is left alone.
+  It's flat: the Liquid Glass asset catalog icon would need `CFBundleIconName`
+  in Qobuz's `Info.plist`, and **never edit Qobuz's `Info.plist`**. Its hash is
+  part of the executable's signature, checked on every launch, so Qobuz stops
+  opening ("can't be opened") once the cached check is gone, e.g. after a
+  restart. Removing the keys doesn't undo it; only reinstalling Qobuz does.
+  Rosin 0.1.1 did this (marked by `RosinIcon` in the plist); Patcher reports
+  those installs as needing reinstalling and leaves them alone.
 - **Re-patching:** the bundle is replaced on every update. Patcher re-patches
   when a Qobuz app launches and every 60s. If it patched an app that was already
   running, the menu offers "Restart to Apply".

@@ -45,11 +45,12 @@ targets:
         type: folder
         buildPhase: resources
     postCompileScripts:
-      # Qobuz.icon is the icon Patcher gives Qobuz. actool compiles it to an
-      # Assets.car (the Liquid Glass icon, found via CFBundleIconName) in
-      # Rosin's Resources/QobuzIcon/, for Patcher to copy into Qobuz. It also
-      # writes a flat .icns, which Patcher doesn't need. Every file written
-      # must be listed under outputFiles (ENABLE_USER_SCRIPT_SANDBOXING).
+      # Qobuz.icon is the icon Patcher gives Qobuz. actool compiles it into
+      # Rosin's Resources/QobuzIcon/: a flat Qobuz.icns, which Patcher sets as
+      # Qobuz's Finder custom icon, and an Assets.car, which isn't used (it
+      # would need an Info.plist edit, and that breaks Qobuz's signature).
+      # Every file written must be listed under outputFiles
+      # (ENABLE_USER_SCRIPT_SANDBOXING).
       - name: Compile Qobuz Icon
         script: |
           set -e
