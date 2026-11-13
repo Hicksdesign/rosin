@@ -14,6 +14,8 @@ final class PlaybackControlsView: NSView {
     private static let horizontalInset: CGFloat = 18
     private static let verticalPadding: CGFloat = 2
     private static let symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+    /// Previous and next are 20% smaller than play/pause, so it stands out.
+    private static let skipSymbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
 
     /// Shows pause while playing: the action a click will take, like the
     /// controls in Qobuz.
@@ -55,7 +57,7 @@ final class PlaybackControlsView: NSView {
         case .next: ("forward.fill", "Next Track")
         }
         return NSImage(systemSymbolName: symbol, accessibilityDescription: description)?
-            .withSymbolConfiguration(Self.symbolConfiguration)
+            .withSymbolConfiguration(control == .playPause ? Self.symbolConfiguration : Self.skipSymbolConfiguration)
     }
 
     // MARK: Drawing
