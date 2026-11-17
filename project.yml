@@ -49,19 +49,34 @@ targets:
       # Rosin's Resources/QobuzIcon/: a flat Qobuz.icns, which Patcher sets as
       # Qobuz's Finder custom icon, and an Assets.car, which isn't used (it
       # would need an Info.plist edit, and that breaks Qobuz's signature).
-      # Every file written must be listed under outputFiles
-      # (ENABLE_USER_SCRIPT_SANDBOXING).
+      # ENABLE_USER_SCRIPT_SANDBOXING only lets the script read what's under
+      # inputFiles and write what's under outputFiles, plus anything in
+      # TEMP_DIR. Listing the .icon folder doesn't cover the files in it, so
+      # each one is listed: add any new image Icon Composer puts in Assets/.
+      # Even then, actool's helpers (ictool, AssetCatalogAgent) are refused
+      # reading the listed files in place and writing the catalog straight
+      # into the bundle (it writes a temporary file beside Assets.car first),
+      # so the .icon is copied into TEMP_DIR, compiled there, and the results
+      # copied out.
       - name: Compile Qobuz Icon
         script: |
           set -e
           out="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/QobuzIcon"
-          mkdir -p "$out"
-          xcrun actool "$SRCROOT/Resources/Qobuz.icon" --compile "$out" \
+          work="$TEMP_DIR/QobuzIcon"
+          rm -rf "$work"
+          mkdir -p "$out" "$work/compiled"
+          cp -R "$SRCROOT/Resources/Qobuz.icon" "$work/Qobuz.icon"
+          xcrun actool "$work/Qobuz.icon" --compile "$work/compiled" \
             --platform macosx --minimum-deployment-target 10.15 --app-icon Qobuz \
             --output-partial-info-plist "$DERIVED_FILE_DIR/QobuzIcon-Info.plist" \
             --output-format human-readable-text --notices --warnings --errors
+          cp "$work/compiled/Assets.car" "$work/compiled/Qobuz.icns" "$out/"
         inputFiles:
           - $(SRCROOT)/Resources/Qobuz.icon
+          - $(SRCROOT)/Resources/Qobuz.icon/icon.json
+          - $(SRCROOT)/Resources/Qobuz.icon/Assets
+          - $(SRCROOT)/Resources/Qobuz.icon/Assets/SVG Image.svg
+          - $(SRCROOT)/Resources/Qobuz.icon/Assets/SVG Image 2.svg
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/QobuzIcon/Assets.car
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/QobuzIcon/Qobuz.icns
