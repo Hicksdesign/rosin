@@ -1,12 +1,15 @@
 // For You. A page of recommendations built from your own Qobuz favourites and
-// listening, opened from a "For You" tab at the top of the nav bar. loader.js
+// listening, opened from a tab at the top of the nav bar. On screen it's
+// called "Home" (the tab, the page title and the menu's Show Home); the code,
+// the setting and the stored history keep the name For You. loader.js
 // loads it (unless the companion's Show For You setting is off) and passes in
 // its SELECTORS and Qobuz's store and API; this file queries Qobuz's DOM only
 // through those selectors.
 //
 // The page is an overlay on the main scroll area rather than a real route, so
-// Qobuz's router never sees it: it closes on any navigation, or a click on
-// another nav tab or the search bar. Sections, top to bottom: a top pick (a
+// Qobuz's router never sees it: it opens over Library, for its sidebar, and
+// closes on any other navigation, or a click on another nav tab or the
+// search bar. Sections, top to bottom: a top pick (a
 // favourite album or a new release from a favourite artist, reshuffled on
 // each visit), In your rotation (recently played tracks, and artists and
 // playlists you opened), New from artists you love, Because you like {Artist},
@@ -453,13 +456,23 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     if (!page || !area || area.width < 200 || area.height < 200) return;
     Object.assign(page.style, { left: `${area.left}px`, top: `${area.top}px`, width: `${area.width}px`, height: `${area.height}px` });
   };
+  // It opens over Library, whichever page was showing, so Qobuz's library
+  // sidebar is beside it. The sidebar belongs to the Library page's template
+  // (UiTemplateLibrary), not the app's frame, so no other page has one. The
+  // route watcher lets this one navigation through instead of closing.
+  const LIBRARY_PATH = '/user-library';
+  let openingOver = null;
   const open = () => {
     const host = $(S.layoutRoot);
     if (!host) return;
+    if (!pathname().startsWith(LIBRARY_PATH)) {
+      openingOver = LIBRARY_PATH;
+      navigate(LIBRARY_PATH);
+    }
     if (!page) {
       page = element(
         `<div id="${PAGE_ID}"><div class="rosin-fy-content">` +
-          '<h1>For You</h1>' +
+          '<h1>Home</h1>' +
           '<p class="rosin-fy-intro">From your favourites and listening</p>' +
           '<div class="rosin-fy-pick-host"></div><div class="rosin-fy-rotation-host"></div><div class="rosin-fy-rows-host"></div>' +
         '</div></div>'
@@ -475,6 +488,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     markTab();
   };
   const close = () => {
+    openingOver = null;
     if (!active) return;
     active = false;
     if (page) page.hidden = true;
@@ -495,7 +509,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     }
     const tab = element(
       `<div ${TAB_ATTRIBUTE} class="ui-block-nav-item flex w-full relative rounded-md cursor-pointer select-none transition-colors duration-200 outline-1 -outline-offset-1 outline-transparent hover:bg-surface-default-secondary">` +
-        `<a class="ui-link flex w-full items-center gap-8 px-12 py-8 rounded-md transition-colors duration-200" href="/foryou">${TAB_ICON}<span>For You</span></a>` +
+        `<a class="ui-link flex w-full items-center gap-8 px-12 py-8 rounded-md transition-colors duration-200" href="/foryou">${TAB_ICON}<span>Home</span></a>` +
       '</div>'
     );
     tab.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(); });
@@ -603,7 +617,12 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     unsubscribe = s.subscribe(() => {
       const state = s.getState();
       const path = state.router?.location?.pathname || '';
-      if (path !== lastPath) { lastPath = path; close(); logRoute(path); }
+      if (path !== lastPath) {
+        lastPath = path;
+        if (path === openingOver) openingOver = null;
+        else close();
+        logRoute(path);
+      }
       const track = state.player?.currentTrack?.id;
       if (track && track !== lastTrack) { lastTrack = track; logTrack(track); }
     });

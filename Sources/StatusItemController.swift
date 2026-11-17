@@ -30,7 +30,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     private let playbackControls = PlaybackControlsView()
     private let immersiveItem = NSMenuItem()
     private lazy var trackInfoItem = actionItem("Show Track Information", #selector(toggleTrackInfo))
-    private lazy var forYouItem = actionItem("Show For You", #selector(toggleForYou))
+    private lazy var forYouItem = actionItem("Show Home", #selector(toggleForYou))
     private let themeItem = NSMenuItem()
     private lazy var loginItem = actionItem("Launch at Login", #selector(toggleLaunchAtLogin))
     private lazy var updateItem = actionItem("Check for Updates…", #selector(checkForUpdates))

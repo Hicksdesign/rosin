@@ -104,11 +104,17 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
   Theme Default clears it, so `custom.css` applies. Only with Use Custom Theme
   on. Clicks keep the menu open and send `setAccent`, which only sets the
   variables, so the colour changes straight away.
-- **For You** (menu setting Show For You, on by default, `forYou` in
-  `config.json`; toggling sends `reloadForYou`): a tab first in the nav bar
-  that opens a recommendations page from your favourites and listening. The
-  page is an overlay on `.ui-layout--root--scroll-main`, not a route, so it
-  closes on any navigation or a click on another tab, the logo or search.
+- **For You** (shown as **Home** in Qobuz and the menu; the code, the
+  `forYouEnabled` setting, `forYou` in `config.json`, `#rosin-foryou` and the
+  `rosin.forYou.*` history keep the old name, so renaming them would reset the
+  setting and history. Menu setting Show Home, on by default; toggling sends
+  `reloadForYou`): a tab first in the nav bar that opens a recommendations
+  page from your favourites and listening. The page is an overlay on
+  `.ui-layout--root--scroll-main`, not a route. It opens over Library
+  (navigating to `/user-library` first), because Qobuz's library sidebar is
+  part of the Library page's template (`UiTemplateLibrary`), not the app's
+  frame, so no other page has one. It closes on any other navigation or a
+  click on another tab, the logo or search.
   Data comes from Qobuz's API (`www.qobuz.com/api.json/0.2/`) with the app's
   own token from the Redux store (found through React's fiber tree from
   `#root`) and the desktop app ID `304027809`; a token only works with the ID
