@@ -572,8 +572,6 @@ html.rosin .CreditsModal__description > * + * {
 
 #rosin-home .rosin-home-content {
   padding-block: 100px;
-}
-#rosin-home .rosin-home-content {
   max-width: 100%;
 }
 #rosin-home .rosin-home-card:hover .rosin-home-art {
