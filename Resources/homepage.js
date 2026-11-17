@@ -515,20 +515,21 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   // The tab, first in the nav bar's list, styled like Qobuz's own. While the
   // page is open it's the highlighted one; Qobuz's own highlight is hidden.
   // ---------------------------------------------------------------------------
+  // Qobuz renders a new nav bar on every navigation, so the one tab element
+  // is moved into each new list.
+  let tab = null;
   const ensureTab = () => {
     const list = $(S.navItems);
     if (!list) return;
-    const existing = list.querySelector(`[${TAB_ATTRIBUTE}]`);
-    if (existing) {
-      if (list.firstElementChild !== existing) list.prepend(existing);
-      return;
+    if (!tab) {
+      tab = element(
+        `<div ${TAB_ATTRIBUTE} class="ui-block-nav-item flex w-full relative rounded-md cursor-pointer select-none transition-colors duration-200 outline-1 -outline-offset-1 outline-transparent hover:bg-surface-default-secondary">` +
+          `<a class="ui-link flex w-full items-center gap-8 px-12 py-8 rounded-md transition-colors duration-200" href="/home">${TAB_ICON}<span>Home</span></a>` +
+        '</div>'
+      );
+      tab.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(); });
     }
-    const tab = element(
-      `<div ${TAB_ATTRIBUTE} class="ui-block-nav-item flex w-full relative rounded-md cursor-pointer select-none transition-colors duration-200 outline-1 -outline-offset-1 outline-transparent hover:bg-surface-default-secondary">` +
-        `<a class="ui-link flex w-full items-center gap-8 px-12 py-8 rounded-md transition-colors duration-200" href="/home">${TAB_ICON}<span>Home</span></a>` +
-      '</div>'
-    );
-    tab.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(); });
+    if (list.firstElementChild === tab) return;
     list.prepend(tab);
     markTab();
   };
@@ -619,9 +620,10 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
 
   // ---------------------------------------------------------------------------
   // Start. This runs before Qobuz's bundle, so wait for its store and nav bar.
-  // After that, the tab is re-added whenever a re-render drops it, and the
-  // page follows the scroll area's size. Polled, like the player state in
-  // loader.js: a couple of querySelector calls.
+  // After that, a MutationObserver puts the tab and the open page back as
+  // soon as a re-render drops them: its callback runs before the next paint,
+  // so the tab is never seen missing and the nav bar doesn't shift. A poll
+  // keeps the page sized to the scroll area and backs the observer up.
   // ---------------------------------------------------------------------------
   let unsubscribe = null;
   const watchStore = (s) => {
@@ -635,23 +637,24 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
       const path = state.router?.location?.pathname || '';
       if (path !== lastPath) {
         lastPath = path;
-        if (path === openingOver) {
-          // Library has rendered by the next frame, so the page moves into
-          // its layout root then, not on the next tick.
-          openingOver = null;
-          requestAnimationFrame(placePage);
-        } else close();
+        if (path === openingOver) openingOver = null;
+        else close();
         logRoute(path);
       }
       const track = state.player?.currentTrack?.id;
       if (track && track !== lastTrack) { lastTrack = track; logTrack(track); }
     });
   };
+  const restore = new MutationObserver(() => {
+    ensureTab();
+    if (active && page.parentElement !== $(S.layoutRoot)) placePage();
+  });
   const tick = setInterval(() => {
     if (!unsubscribe) {
       const s = store();
       if (!s || !$(S.navItems)) return;
       watchStore(s);
+      restore.observe(document.body, { childList: true, subtree: true });
     }
     ensureTab();
     if (active) placePage();
@@ -659,13 +662,14 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   document.addEventListener('click', onClick, true);
 
   return () => {
+    restore.disconnect();
     clearInterval(tick);
     clearInterval(playTimer);
     unsubscribe?.();
     document.removeEventListener('click', onClick, true);
     active = false;
     markTab();
-    $(`[${TAB_ATTRIBUTE}]`)?.remove();
+    tab?.remove();
     page?.remove();
     style.remove();
   };
