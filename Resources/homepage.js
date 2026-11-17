@@ -462,9 +462,15 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   // layout root, under the z-index of the nav bar and player panels, so
   // Qobuz's own menus still open over it.
   // ---------------------------------------------------------------------------
+  // Qobuz renders a new layout root when the page template changes (Discover
+  // to Library, say), and the old one takes the page with it, so it's put
+  // back whenever it's been left behind.
   const placePage = () => {
+    const host = $(S.layoutRoot);
+    if (!page || !host) return;
+    if (page.parentElement !== host) host.append(page);
     const area = $(S.mainScroll)?.getBoundingClientRect();
-    if (!page || !area || area.width < 200 || area.height < 200) return;
+    if (!area || area.width < 200 || area.height < 200) return;
     Object.assign(page.style, { left: `${area.left}px`, top: `${area.top}px`, width: `${area.width}px`, height: `${area.height}px` });
   };
   // It opens over Library, whichever page was showing, so Qobuz's library
@@ -489,7 +495,6 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
         '</div></div>'
       );
     }
-    if (page.parentElement !== host) host.append(page);
     active = true;
     placePage();
     page.hidden = false;
@@ -630,8 +635,12 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
       const path = state.router?.location?.pathname || '';
       if (path !== lastPath) {
         lastPath = path;
-        if (path === openingOver) openingOver = null;
-        else close();
+        if (path === openingOver) {
+          // Library has rendered by the next frame, so the page moves into
+          // its layout root then, not on the next tick.
+          openingOver = null;
+          requestAnimationFrame(placePage);
+        } else close();
         logRoute(path);
       }
       const track = state.player?.currentTrack?.id;
