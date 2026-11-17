@@ -5,8 +5,8 @@ patches Qobuz to load a script that adds custom CSS/fonts, keyboard shortcuts
 and a For You page, and reports the current track, keeps that patch in place across Qobuz updates,
 and shows the track and playback controls in the menubar. Not for distribution.
 
-It used to wrap the Qobuz web player in a `WKWebView`; that version is on the
-`web-wrapper` branch. It was dropped because the web player lacks the desktop
+It used to wrap the Qobuz web player in a `WKWebView`; that version is commit
+`c4860a4` in `main`'s history. It was dropped because the web player lacks the desktop
 app's audio options (Qobuz Connect speakers, hi-res output).
 
 It was called QobuzShell until October 2026. Patcher still recognises the old
