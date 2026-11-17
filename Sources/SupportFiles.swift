@@ -4,9 +4,9 @@ import Foundation
 /// ~/Library/Application Support/Rosin/:
 ///
 ///   loader.js     copied from this app on every launch (the patch require()s it)
-///   foryou.js     the For You page, copied likewise; loader.js require()s it
+///   homepage.js   the Home page, copied likewise; loader.js require()s it
 ///   config.json   where loader.js finds custom.css and the fonts, whether to apply them, the accent,
-///                 and whether to show For You
+///                 and whether to show Home
 ///   sockets/      one Unix socket per running Qobuz app (created by loader.js)
 ///
 /// custom.css and Fonts/ are looked up in this order (first match wins):
@@ -67,12 +67,21 @@ enum SupportFiles {
         }
     }
 
-    /// Whether loader.js adds the For You tab and page. On by default.
-    private static let forYouEnabledKey = "forYouEnabled"
-    static var forYouEnabled: Bool {
-        get { UserDefaults.standard.object(forKey: forYouEnabledKey) as? Bool ?? true }
+    /// Whether loader.js adds the Home tab and page. On by default. Until
+    /// November 2026 the page was called For You and this was saved as
+    /// forYouEnabled, which is still read until the setting is next changed.
+    private static let homePageEnabledKey = "homePageEnabled"
+    private static let legacyHomePageEnabledKey = "forYouEnabled"
+    static var homePageEnabled: Bool {
+        get {
+            let defaults = UserDefaults.standard
+            return defaults.object(forKey: homePageEnabledKey) as? Bool
+                ?? defaults.object(forKey: legacyHomePageEnabledKey) as? Bool
+                ?? true
+        }
         set {
-            UserDefaults.standard.set(newValue, forKey: forYouEnabledKey)
+            UserDefaults.standard.set(newValue, forKey: homePageEnabledKey)
+            UserDefaults.standard.removeObject(forKey: legacyHomePageEnabledKey)
             writeConfig()
         }
     }
@@ -84,11 +93,15 @@ enum SupportFiles {
         var fonts: String?
         var theme: Bool
         var accent: String?
-        var forYou: Bool
+        var homePage: Bool
     }
 
     /// The scripts copied into the support folder for Qobuz to load.
-    private static let scripts = ["loader.js", "foryou.js"]
+    private static let scripts = ["loader.js", "homepage.js"]
+
+    /// Scripts earlier versions copied there, deleted on install.
+    /// foryou.js is homepage.js before the rename.
+    private static let retiredScripts = ["foryou.js"]
 
     /// Copies the scripts and writes config.json. Run at launch and before
     /// reloading Qobuz, so the page always gets the current loader.
@@ -107,6 +120,9 @@ enum SupportFiles {
                 try? fm.removeItem(at: destination)
                 try fm.copyItem(at: source, to: destination)
             }
+            for script in retiredScripts {
+                try? fm.removeItem(at: directory.appendingPathComponent(script))
+            }
 
             writeConfig()
         } catch {
@@ -122,7 +138,7 @@ enum SupportFiles {
             fonts: firstExisting("Fonts/fonts.json", in: dirs)?.deletingLastPathComponent().path,
             theme: themeEnabled,
             accent: accent,
-            forYou: forYouEnabled
+            homePage: homePageEnabled
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]

@@ -12,8 +12,8 @@
 //  - reports the current track to the companion over a Unix socket and takes
 //    commands back (newline-delimited JSON both ways);
 //  - adds keyboard shortcuts (see SHORTCUTS);
-//  - loads For You (foryou.js), a recommendations page, unless the
-//    companion's Show For You setting is off.
+//  - loads Home (homepage.js), a recommendations page, unless the
+//    companion's Show Home setting is off.
 //
 // window.Rosin exposes state(), selectors and the commands for debugging.
 
@@ -68,7 +68,7 @@
     // The older stylesheet, which hard-codes the accent colours (see ACCENTS).
     legacyStylesheet: 'link[href*="legacy.css"]',
 
-    // For You (foryou.js). Its tab goes first in the nav bar's list; its page
+    // Home (homepage.js). Its tab goes first in the nav bar's list; its page
     // covers the main scroll area, placed in the layout root.
     navItems: '.NavBar__items',
     navItem: '.NavBar__items .ui-block-nav-item',
@@ -281,7 +281,7 @@
   watchCSS();
 
   // ---------------------------------------------------------------------------
-  // Qobuz's Redux store and API, for For You, which needs your favourites and
+  // Qobuz's Redux store and API, for Home, which needs your favourites and
   // its own navigation. Everything else here reads the DOM.
   //
   // The store is found by walking React's fiber tree from #root to the
@@ -328,27 +328,27 @@
   };
 
   // ---------------------------------------------------------------------------
-  // For You (foryou.js): the companion's Show For You setting, `forYou` in
+  // Home (homepage.js): the companion's Show Home setting, `homePage` in
   // config.json. Copied next to this file by the companion, like loader.js.
   // ---------------------------------------------------------------------------
-  let removeForYou = null;
-  const applyForYou = () => {
-    const on = config.forYou !== false;
-    if (on === !!removeForYou) return;
-    if (!on) { removeForYou(); removeForYou = null; return; }
+  let removeHomePage = null;
+  const applyHomePage = () => {
+    const on = config.homePage !== false;
+    if (on === !!removeHomePage) return;
+    if (!on) { removeHomePage(); removeHomePage = null; return; }
     try {
-      removeForYou = require(path.join(SUPPORT_DIR, 'foryou.js'))({
+      removeHomePage = require(path.join(SUPPORT_DIR, 'homepage.js'))({
         selectors: SELECTORS, store: qobuzStore, api: qobuzAPI, navigate, log,
       });
     } catch (e) {
-      log('foryou.js failed to load:', e.message);
+      log('homepage.js failed to load:', e.message);
     }
   };
-  const reloadForYou = () => {
+  const reloadHomePage = () => {
     config = readConfig();
-    applyForYou();
+    applyHomePage();
   };
-  applyForYou();
+  applyHomePage();
 
   // ---------------------------------------------------------------------------
   // Reading state
@@ -444,7 +444,7 @@
   };
 
   const commands = {
-    togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles, reloadForYou,
+    togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles, reloadHomePage,
     reload: () => location.reload(),
     setOpenImmersiveOnPlay: (on) => { openImmersiveOnPlay = !!on; },
     setAccent,

@@ -1,8 +1,8 @@
-// For You. A page of recommendations built from your own Qobuz favourites and
-// listening, opened from a tab at the top of the nav bar. On screen it's
-// called "Home" (the tab, the page title and the menu's Show Home); the code,
-// the setting and the stored history keep the name For You. loader.js
-// loads it (unless the companion's Show For You setting is off) and passes in
+// Home. A page of recommendations built from your own Qobuz favourites and
+// listening, opened from a Home tab at the top of the nav bar. It was called
+// For You until November 2026; its stored history is carried over from then.
+// In the DOM and CSS it's rosin-home, so it isn't mistaken for Qobuz's own
+// markup or the home folder. loader.js loads it (unless the companion's Show Home setting is off) and passes in
 // its SELECTORS and Qobuz's store and API; this file queries Qobuz's DOM only
 // through those selectors.
 //
@@ -51,15 +51,15 @@
 
 /* eslint-env browser */
 
-// Installs For You and returns a function that removes it again. All state is
+// Installs the Home page and returns a function that removes it again. All state is
 // inside, so it can be installed again after a cleanup.
 module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-  const STYLE_ID = 'rosin-foryou-styles';
-  const PAGE_ID = 'rosin-foryou';
-  const TAB_ATTRIBUTE = 'data-rosin-foryou';
+  const STYLE_ID = 'rosin-home-styles';
+  const PAGE_ID = 'rosin-home';
+  const TAB_ATTRIBUTE = 'data-rosin-home';
 
   // A heart, so it doesn't look like Qobuz's own sparkle icons.
   const TAB_ICON = '<svg class="ui-base-icon shrink-0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.3S3.6 14.9 3.6 8.9C3.6 6.3 5.7 4.3 8.2 4.3C9.9 4.3 11.3 5.2 12 6.6C12.7 5.2 14.1 4.3 15.8 4.3C18.3 4.3 20.4 6.3 20.4 8.9C20.4 14.9 12 20.3 12 20.3Z"/></svg>';
@@ -140,7 +140,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   // Recent activity, for In your rotation: tracks played, and artists and
   // playlists opened. Kept in localStorage, newest first.
   // ---------------------------------------------------------------------------
-  const STORAGE_PREFIX = 'rosin.forYou.';
+  const STORAGE_PREFIX = 'rosin.home.';
   const storageGet = (key, fallback) => {
     try { return localStorage.getItem(STORAGE_PREFIX + key) ?? fallback; } catch (_) { return fallback; }
   };
@@ -151,6 +151,17 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     try { return JSON.parse(storageGet(`recent.${kind}`, '[]')) || []; } catch (_) { return []; }
   };
   const writeLog = (kind, entries) => storageSet(`recent.${kind}`, JSON.stringify(entries));
+
+  // History saved while the page was called For You moves to the new keys.
+  const LEGACY_STORAGE_PREFIX = 'rosin.forYou.';
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (!key.startsWith(LEGACY_STORAGE_PREFIX)) continue;
+      const renamed = STORAGE_PREFIX + key.slice(LEGACY_STORAGE_PREFIX.length);
+      if (localStorage.getItem(renamed) === null) localStorage.setItem(renamed, localStorage.getItem(key));
+      localStorage.removeItem(key);
+    }
+  } catch (_) {}
 
   const bump = (kind, id) => {
     writeLog(kind, [{ id, t: Date.now() }, ...readLog(kind).filter((x) => x.id !== id)].slice(0, 20));
@@ -263,19 +274,19 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     template.innerHTML = html.trim();
     return template.content.firstElementChild;
   };
-  const playButton = `<button class="rosin-fy-play" title="Play" aria-label="Play">${PLAY_ICON}</button>`;
-  const badge = (o) => (isHiRes(o) ? '<span class="rosin-fy-badge">Hi-Res</span>' : '');
+  const playButton = `<button class="rosin-home-play" title="Play" aria-label="Play">${PLAY_ICON}</button>`;
+  const badge = (o) => (isHiRes(o) ? '<span class="rosin-home-badge">Hi-Res</span>' : '');
 
   // A card opens `path` when clicked; its play button, if any, runs onPlay.
   const card = ({ path, image, title, subtitle, round = false, extra = '', onPlay }) => {
     const c = element(
-      `<a class="rosin-fy-card${round ? ' rosin-fy-card--round' : ''}" href="${escape(path)}">` +
-        `<div class="rosin-fy-art"><img loading="lazy" src="${escape(image)}" alt="">${extra}${onPlay ? playButton : ''}</div>` +
-        `<div class="rosin-fy-title">${escape(title)}</div><div class="rosin-fy-subtitle">${escape(subtitle)}</div>` +
+      `<a class="rosin-home-card${round ? ' rosin-home-card--round' : ''}" href="${escape(path)}">` +
+        `<div class="rosin-home-art"><img loading="lazy" src="${escape(image)}" alt="">${extra}${onPlay ? playButton : ''}</div>` +
+        `<div class="rosin-home-title">${escape(title)}</div><div class="rosin-home-subtitle">${escape(subtitle)}</div>` +
       '</a>'
     );
     c.addEventListener('click', (e) => { e.preventDefault(); go(path); });
-    c.querySelector('.rosin-fy-play')?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onPlay(); });
+    c.querySelector('.rosin-home-play')?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onPlay(); });
     return c;
   };
   const albumCard = (album) => card({
@@ -296,14 +307,14 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   // with no cards removes itself.
   const row = (title, subtitle) => {
     const section = element(
-      '<section class="rosin-fy-row">' +
-        `<div class="rosin-fy-rowhead"><h2>${escape(title)}</h2>${subtitle ? `<span>${escape(subtitle)}</span>` : ''}</div>` +
-        `<div class="rosin-fy-shelf">${'<div class="rosin-fy-placeholder"></div>'.repeat(6)}</div>` +
+      '<section class="rosin-home-row">' +
+        `<div class="rosin-home-rowhead"><h2>${escape(title)}</h2>${subtitle ? `<span>${escape(subtitle)}</span>` : ''}</div>` +
+        `<div class="rosin-home-shelf">${'<div class="rosin-home-placeholder"></div>'.repeat(6)}</div>` +
       '</section>'
     );
     section.fill = (cards) => {
       if (!cards?.length) { section.remove(); return; }
-      section.querySelector('.rosin-fy-shelf').replaceChildren(...cards);
+      section.querySelector('.rosin-home-shelf').replaceChildren(...cards);
     };
     return section;
   };
@@ -315,24 +326,24 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   const topPick = (album, kind) => {
     const path = `/album/${album.id}`;
     const section = element(
-      '<section class="rosin-fy-pick">' +
-        `<a class="rosin-fy-pick-art" href="${path}"><img loading="lazy" src="${escape(coverURL(album))}" alt="">${badge(album)}</a>` +
-        '<div class="rosin-fy-pick-info">' +
-          `<div class="rosin-fy-pick-kind">${escape(kind)}</div>` +
-          `<a class="rosin-fy-pick-title" href="${path}">${escape(album.title)}</a>` +
-          `<div class="rosin-fy-pick-subtitle">${escape(albumArtist(album) + year(album))}</div>` +
-          `<button class="rosin-fy-pick-play">${PLAY_ICON}Play</button>` +
-          `<button class="rosin-fy-pick-shuffle" title="Show another">${SHUFFLE_ICON}Shuffle pick</button>` +
+      '<section class="rosin-home-pick">' +
+        `<a class="rosin-home-pick-art" href="${path}"><img loading="lazy" src="${escape(coverURL(album))}" alt="">${badge(album)}</a>` +
+        '<div class="rosin-home-pick-info">' +
+          `<div class="rosin-home-pick-kind">${escape(kind)}</div>` +
+          `<a class="rosin-home-pick-title" href="${path}">${escape(album.title)}</a>` +
+          `<div class="rosin-home-pick-subtitle">${escape(albumArtist(album) + year(album))}</div>` +
+          `<button class="rosin-home-pick-play">${PLAY_ICON}Play</button>` +
+          `<button class="rosin-home-pick-shuffle" title="Show another">${SHUFFLE_ICON}Shuffle pick</button>` +
         '</div>' +
       '</section>'
     );
     section.querySelectorAll('a').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(path); }));
-    section.querySelector('.rosin-fy-pick-play').addEventListener('click', () => play(path));
-    section.querySelector('.rosin-fy-pick-shuffle').addEventListener('click', () => shufflePick());
+    section.querySelector('.rosin-home-pick-play').addEventListener('click', () => play(path));
+    section.querySelector('.rosin-home-pick-shuffle').addEventListener('click', () => shufflePick());
     return section;
   };
   const shufflePick = () => {
-    const host = page?.querySelector('.rosin-fy-pick-host');
+    const host = page?.querySelector('.rosin-home-pick-host');
     if (!host || !heroPool.length) return;
     const last = heroLastId ?? storageGet('pick.last', null);
     let choices = heroPool.filter((x) => String(x.album.id) !== String(last));
@@ -347,7 +358,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   // The recommendation rows. Each fills in as its data arrives.
   // ---------------------------------------------------------------------------
   const buildRows = () => {
-    const host = page.querySelector('.rosin-fy-rows-host');
+    const host = page.querySelector('.rosin-home-rows-host');
     const newFromFavourites = row('New from artists you love', 'Latest releases from your favourites');
     const becauseHost = document.createElement('div');
     const mightLike = row('Artists you might like', 'Similar to the artists you love');
@@ -394,7 +405,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
         mightLike.fill(ranked.map((id) => artistCard(byId.get(id))));
       });
     }, (e) => {
-      log('For You: favourites failed to load:', e.message);
+      log('Home: favourites failed to load:', e.message);
       newFromFavourites.remove();
       mightLike.remove();
     });
@@ -408,7 +419,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   // In your rotation: recent tracks (one per album, at most two per artist),
   // then recently played or opened artists and opened playlists, newest first.
   const refreshRotation = () => {
-    const host = page?.querySelector('.rosin-fy-rotation-host');
+    const host = page?.querySelector('.rosin-home-rotation-host');
     if (!host) return;
     const tracks = readLog('tracks');
     const albumsSeen = new Set(), perArtist = new Map(), trackArtists = new Set();
@@ -471,10 +482,10 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     }
     if (!page) {
       page = element(
-        `<div id="${PAGE_ID}"><div class="rosin-fy-content">` +
+        `<div id="${PAGE_ID}"><div class="rosin-home-content">` +
           '<h1>Home</h1>' +
-          '<p class="rosin-fy-intro">From your favourites and listening</p>' +
-          '<div class="rosin-fy-pick-host"></div><div class="rosin-fy-rotation-host"></div><div class="rosin-fy-rows-host"></div>' +
+          '<p class="rosin-home-intro">From your favourites and listening</p>' +
+          '<div class="rosin-home-pick-host"></div><div class="rosin-home-rotation-host"></div><div class="rosin-home-rows-host"></div>' +
         '</div></div>'
       );
     }
@@ -509,7 +520,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     }
     const tab = element(
       `<div ${TAB_ATTRIBUTE} class="ui-block-nav-item flex w-full relative rounded-md cursor-pointer select-none transition-colors duration-200 outline-1 -outline-offset-1 outline-transparent hover:bg-surface-default-secondary">` +
-        `<a class="ui-link flex w-full items-center gap-8 px-12 py-8 rounded-md transition-colors duration-200" href="/foryou">${TAB_ICON}<span>Home</span></a>` +
+        `<a class="ui-link flex w-full items-center gap-8 px-12 py-8 rounded-md transition-colors duration-200" href="/home">${TAB_ICON}<span>Home</span></a>` +
       '</div>'
     );
     tab.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(); });
@@ -517,13 +528,13 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     markTab();
   };
   const markTab = () => {
-    $(`[${TAB_ATTRIBUTE}]`)?.classList.toggle('rosin-fy-tab-active', active);
+    $(`[${TAB_ATTRIBUTE}]`)?.classList.toggle('rosin-home-tab-active', active);
     $$(S.navItem).forEach((item) => {
-      if (!item.hasAttribute(TAB_ATTRIBUTE)) item.classList.toggle('rosin-fy-tab-inactive', active);
+      if (!item.hasAttribute(TAB_ATTRIBUTE)) item.classList.toggle('rosin-home-tab-inactive', active);
     });
   };
 
-  // Clicking another tab, the logo or the search bar leaves For You. The page
+  // Clicking another tab, the logo or the search bar leaves Home. The page
   // sits over whatever route was showing, so going to that same route changes
   // nothing in the router, and the route watcher below wouldn't close it.
   const onClick = (e) => {
@@ -539,62 +550,62 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   // ---------------------------------------------------------------------------
   const CSS = `
     #${PAGE_ID} {
-      --fy-text: var(--token-text-primary, #fff);
-      --fy-text-secondary: var(--token-text-secondary, #bdbdbd);
-      --fy-accent: var(--token-text-accent, #ffcb74);
-      --fy-on-accent: var(--token-text-invert, #242424);
-      --fy-fill: color-mix(in srgb, currentColor 5%, transparent);
-      --fy-fill-hover: color-mix(in srgb, currentColor 10%, transparent);
-      --fy-line: color-mix(in srgb, currentColor 13%, transparent);
+      --rosin-home-text: var(--token-text-primary, #fff);
+      --rosin-home-text-secondary: var(--token-text-secondary, #bdbdbd);
+      --rosin-home-accent: var(--token-text-accent, #ffcb74);
+      --rosin-home-on-accent: var(--token-text-invert, #242424);
+      --rosin-home-fill: color-mix(in srgb, currentColor 5%, transparent);
+      --rosin-home-fill-hover: color-mix(in srgb, currentColor 10%, transparent);
+      --rosin-home-line: color-mix(in srgb, currentColor 13%, transparent);
       position: fixed; z-index: 220; overflow: auto;
-      color: var(--fy-text);
+      color: var(--rosin-home-text);
       background: var(--token-color-surface-default-primary, #121212);
       scrollbar-width: thin;
     }
     #${PAGE_ID}[hidden] { display: none; }
-    .rosin-fy-content { max-width: 1500px; margin: 0 auto; padding: 34px 40px 60px; }
-    .rosin-fy-content h1 { margin: 0; font-size: 36px; font-weight: 800; }
-    .rosin-fy-intro { margin: 7px 0 0; font-size: 14px; color: var(--fy-text-secondary); }
+    .rosin-home-content { max-width: 1500px; margin: 0 auto; padding: 34px 40px 60px; }
+    .rosin-home-content h1 { margin: 0; font-size: 36px; font-weight: 800; }
+    .rosin-home-intro { margin: 7px 0 0; font-size: 14px; color: var(--rosin-home-text-secondary); }
 
-    .rosin-fy-pick { display: flex; align-items: center; gap: 26px; margin: 20px 0 6px; padding: 22px; border-radius: 18px; background: var(--fy-fill); border: 1px solid var(--fy-line); }
-    .rosin-fy-pick-art { position: relative; flex: none; width: 168px; height: 168px; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .6); }
-    .rosin-fy-pick-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .rosin-fy-pick-info { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-    .rosin-fy-pick-kind { font-size: 13px; font-weight: 600; color: var(--fy-text-secondary); }
-    .rosin-fy-pick-title { font-size: 34px; font-weight: 800; line-height: 1.08; color: var(--fy-text); text-decoration: none; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .rosin-fy-pick-title:hover { text-decoration: underline; }
-    .rosin-fy-pick-subtitle { font-size: 14px; color: var(--fy-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .rosin-fy-pick-play { margin-top: 8px; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 26px; background: var(--fy-accent); color: var(--fy-on-accent); font: inherit; font-size: 14px; font-weight: 700; padding: 11px 24px; cursor: pointer; }
-    .rosin-fy-pick-play:hover { filter: brightness(1.06); }
-    .rosin-fy-pick-play svg { width: 17px; height: 17px; }
-    .rosin-fy-pick-shuffle { margin-top: 10px; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; border: 0; padding: 2px 0; background: none; color: var(--fy-text-secondary); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; }
-    .rosin-fy-pick-shuffle:hover { color: var(--fy-accent); }
-    .rosin-fy-pick-shuffle svg { width: 14px; height: 14px; }
+    .rosin-home-pick { display: flex; align-items: center; gap: 26px; margin: 20px 0 6px; padding: 22px; border-radius: 18px; background: var(--rosin-home-fill); border: 1px solid var(--rosin-home-line); }
+    .rosin-home-pick-art { position: relative; flex: none; width: 168px; height: 168px; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .6); }
+    .rosin-home-pick-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .rosin-home-pick-info { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+    .rosin-home-pick-kind { font-size: 13px; font-weight: 600; color: var(--rosin-home-text-secondary); }
+    .rosin-home-pick-title { font-size: 34px; font-weight: 800; line-height: 1.08; color: var(--rosin-home-text); text-decoration: none; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .rosin-home-pick-title:hover { text-decoration: underline; }
+    .rosin-home-pick-subtitle { font-size: 14px; color: var(--rosin-home-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rosin-home-pick-play { margin-top: 8px; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 26px; background: var(--rosin-home-accent); color: var(--rosin-home-on-accent); font: inherit; font-size: 14px; font-weight: 700; padding: 11px 24px; cursor: pointer; }
+    .rosin-home-pick-play:hover { filter: brightness(1.06); }
+    .rosin-home-pick-play svg { width: 17px; height: 17px; }
+    .rosin-home-pick-shuffle { margin-top: 10px; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; border: 0; padding: 2px 0; background: none; color: var(--rosin-home-text-secondary); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; }
+    .rosin-home-pick-shuffle:hover { color: var(--rosin-home-accent); }
+    .rosin-home-pick-shuffle svg { width: 14px; height: 14px; }
 
-    .rosin-fy-row { margin: 28px 0 6px; }
-    .rosin-fy-rowhead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
-    .rosin-fy-rowhead h2 { margin: 0; font-size: 20px; font-weight: 700; }
-    .rosin-fy-rowhead span { font-size: 12.5px; color: var(--fy-text-secondary); }
+    .rosin-home-row { margin: 28px 0 6px; }
+    .rosin-home-rowhead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+    .rosin-home-rowhead h2 { margin: 0; font-size: 20px; font-weight: 700; }
+    .rosin-home-rowhead span { font-size: 12.5px; color: var(--rosin-home-text-secondary); }
     /* Capped widths, so a row with only a card or two doesn't stretch them. */
-    .rosin-fy-shelf { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(158px, 190px); gap: 20px; overflow-x: auto; overflow-y: hidden; padding-bottom: 12px; scroll-snap-type: x proximity; scrollbar-width: thin; }
-    .rosin-fy-card { display: block; min-width: 0; text-decoration: none; scroll-snap-align: start; cursor: pointer; }
-    .rosin-fy-art { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--fy-fill-hover); transition: transform .16s; }
-    .rosin-fy-card:hover .rosin-fy-art { transform: translateY(-4px); }
-    .rosin-fy-card--round .rosin-fy-art { border-radius: 50%; }
-    .rosin-fy-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .rosin-fy-title { margin-top: 10px; font-size: 13.5px; font-weight: 700; color: var(--fy-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .rosin-fy-subtitle { margin-top: 2px; font-size: 12px; color: var(--fy-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .rosin-fy-card--round .rosin-fy-title, .rosin-fy-card--round .rosin-fy-subtitle { text-align: center; }
-    .rosin-fy-badge { position: absolute; top: 8px; left: 8px; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; color: var(--fy-on-accent); background: var(--fy-accent); }
-    .rosin-fy-play { position: absolute; right: 9px; bottom: 9px; width: 44px; height: 44px; border: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--fy-accent); color: var(--fy-on-accent); cursor: pointer; opacity: 0; transform: translateY(8px) scale(.85); transition: opacity .15s, transform .15s; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
-    .rosin-fy-play svg { width: 21px; height: 21px; margin-left: 2px; }
-    .rosin-fy-card:hover .rosin-fy-play { opacity: 1; transform: none; }
-    .rosin-fy-placeholder { aspect-ratio: 1; border-radius: 12px; background: linear-gradient(100deg, var(--fy-fill) 30%, var(--fy-fill-hover) 50%, var(--fy-fill) 70%); background-size: 200% 100%; animation: rosin-fy-shimmer 1.3s linear infinite; }
-    @keyframes rosin-fy-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    .rosin-home-shelf { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(158px, 190px); gap: 20px; overflow-x: auto; overflow-y: hidden; padding-bottom: 12px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+    .rosin-home-card { display: block; min-width: 0; text-decoration: none; scroll-snap-align: start; cursor: pointer; }
+    .rosin-home-art { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--rosin-home-fill-hover); transition: transform .16s; }
+    .rosin-home-card:hover .rosin-home-art { transform: translateY(-4px); }
+    .rosin-home-card--round .rosin-home-art { border-radius: 50%; }
+    .rosin-home-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .rosin-home-title { margin-top: 10px; font-size: 13.5px; font-weight: 700; color: var(--rosin-home-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rosin-home-subtitle { margin-top: 2px; font-size: 12px; color: var(--rosin-home-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rosin-home-card--round .rosin-home-title, .rosin-home-card--round .rosin-home-subtitle { text-align: center; }
+    .rosin-home-badge { position: absolute; top: 8px; left: 8px; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; color: var(--rosin-home-on-accent); background: var(--rosin-home-accent); }
+    .rosin-home-play { position: absolute; right: 9px; bottom: 9px; width: 44px; height: 44px; border: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--rosin-home-accent); color: var(--rosin-home-on-accent); cursor: pointer; opacity: 0; transform: translateY(8px) scale(.85); transition: opacity .15s, transform .15s; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
+    .rosin-home-play svg { width: 21px; height: 21px; margin-left: 2px; }
+    .rosin-home-card:hover .rosin-home-play { opacity: 1; transform: none; }
+    .rosin-home-placeholder { aspect-ratio: 1; border-radius: 12px; background: linear-gradient(100deg, var(--rosin-home-fill) 30%, var(--rosin-home-fill-hover) 50%, var(--rosin-home-fill) 70%); background-size: 200% 100%; animation: rosin-home-shimmer 1.3s linear infinite; }
+    @keyframes rosin-home-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-    .rosin-fy-tab-active { background: color-mix(in srgb, currentColor 9%, transparent) !important; outline-color: color-mix(in srgb, currentColor 14%, transparent) !important; }
-    .rosin-fy-tab-active a, .rosin-fy-tab-active span { white-space: nowrap; }
-    .rosin-fy-tab-inactive { background-color: transparent !important; outline-color: transparent !important; }
+    .rosin-home-tab-active { background: color-mix(in srgb, currentColor 9%, transparent) !important; outline-color: color-mix(in srgb, currentColor 14%, transparent) !important; }
+    .rosin-home-tab-active a, .rosin-home-tab-active span { white-space: nowrap; }
+    .rosin-home-tab-inactive { background-color: transparent !important; outline-color: transparent !important; }
   `;
   const style = document.createElement('style');
   style.id = STYLE_ID;
