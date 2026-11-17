@@ -20,22 +20,27 @@ html.rosin *:not([class*=icon-]):not([class*=pct]) {
   --container-desktop-large: 100%;
 }
 
-html.rosin h1, html.rosin h2, html.rosin h3,
-html.rosin .BigStoryCard__title,
-html.rosin .PageHeader__title,
-html.rosin .StoryCard__title,
-html.rosin .StoryHeading__title {
+html.rosin *:not([class*=icon-]):not([class*=pct]) h1, html.rosin *:not([class*=icon-]):not([class*=pct]) h2, html.rosin *:not([class*=icon-]):not([class*=pct]) h3,
+html.rosin *:not([class*=icon-]):not([class*=pct]) .BigStoryCard__title,
+html.rosin *:not([class*=icon-]):not([class*=pct]) .PageHeader__title,
+html.rosin *:not([class*=icon-]):not([class*=pct]) .StoryCard__title,
+html.rosin *:not([class*=icon-]):not([class*=pct]) .StoryHeading__title {
   font-weight: 700;
   line-height: 1.1;
   font-variation-settings: "opsz" 32;
   text-wrap: balance !important;
   overflow: unset;
 }
-html.rosin h1,
-html.rosin h1.PageHeader__title {
+html.rosin *:not([class*=icon-]):not([class*=pct]) .BigStoryCard__title,
+html.rosin *:not([class*=icon-]):not([class*=pct]) .StoryCard__title,
+html.rosin *:not([class*=icon-]):not([class*=pct]) .StoryHeading__title {
+  font-family: "Nyght Serif", "PlayfairDisplay", serif !important;
+}
+html.rosin *:not([class*=icon-]):not([class*=pct]) h1,
+html.rosin *:not([class*=icon-]):not([class*=pct]) h1.PageHeader__title {
   letter-spacing: -0.03rem;
 }
-html.rosin .StoryHeading__title {
+html.rosin *:not([class*=icon-]):not([class*=pct]) .StoryHeading__title {
   max-inline-size: 30ch;
   display: unset;
 }
@@ -370,6 +375,10 @@ img[src*=hires] {
   height: var(--component-height);
 }
 
+.NavBar__items span {
+  white-space: nowrap;
+}
+
 .global__button,
 .ui-block-nav-item,
 .ui-section-toolbar .rounded-md {
@@ -490,53 +499,56 @@ img[src*=hires] {
 }
 
 /* Magazine */
-.Story {
+html.rosin .magazine {
+  padding: 0px 20px 100px 20px;
+}
+html.rosin .BigStoryCard__title,
+html.rosin .StoryCard__title {
+  -webkit-line-clamp: 3;
+}
+html.rosin .StoryHeading__image {
+  background-position: center 30%;
+}
+html.rosin .Story {
   margin-block-start: -56px;
 }
-
-.StoryCredits__credit,
-.StoryCredits__excerpt {
+html.rosin .StoryCredits__credit,
+html.rosin .StoryCredits__excerpt {
   margin-inline: auto;
 }
-
-.header-page__artist-bio,
-.StoryAlbum__description {
+html.rosin .header-page__artist-bio,
+html.rosin .StoryAlbum__description {
   mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
 }
-
-.StoryCard {
+html.rosin .StoryCard {
   border-radius: 12px;
   contain: paint;
 }
-
-.BigStoryCard__arrows {
+html.rosin .BigStoryCard__arrows {
   margin-block-start: 12px;
 }
-
-.BigStoryCard__backgroundContainer {
+html.rosin .BigStoryCard__backgroundContainer {
   border-radius: 12px 0 0 12px;
   contain: paint;
 }
-.BigStoryCard__backgroundContainer + .BigStoryCard__meta {
+html.rosin .BigStoryCard__backgroundContainer + .BigStoryCard__meta {
   border-radius: 0 12px 12px 0;
 }
-
-.BigStoryCard__meta {
+html.rosin .BigStoryCard__meta {
   border-radius: 12px 0 0 12px;
   contain: paint;
 }
-.BigStoryCard__meta + .BigStoryCard__backgroundContainer {
+html.rosin .BigStoryCard__meta + .BigStoryCard__backgroundContainer {
   border-radius: 0 12px 12px 0;
 }
-
-.popin-description__text br,
-.CreditsModal__description br {
+html.rosin .popin-description__text br,
+html.rosin .CreditsModal__description br {
   display: block !important;
   content: "";
   margin-block-start: 1lh;
 }
-.popin-description__text > * + *,
-.CreditsModal__description > * + * {
+html.rosin .popin-description__text > * + *,
+html.rosin .CreditsModal__description > * + * {
   margin-block-start: 1lh;
 }
 
@@ -556,4 +568,12 @@ img[src*=hires] {
   margin-left: 10px;
   margin-bottom: 24px;
   margin-top: -34px;
+}
+
+.rosin-fy-content {
+  padding-block: 100px;
+}
+
+.rosin-fy-content {
+  max-width: 100%;
 }

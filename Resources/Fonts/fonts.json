@@ -1,4 +1,8 @@
 [
   {"family": "Jacket Sans", "file": "JacketSansVariable.woff2", "weight": "400 800", "style": "normal"},
-  {"family": "Jacket Sans", "file": "JacketSansVariable-Italic.woff2", "weight": "400 800", "style": "italic"}
+  {"family": "Jacket Sans", "file": "JacketSansVariable-Italic.woff2", "weight": "400 800", "style": "italic"},
+  {"family": "Nyght Serif Medium", "file": "NyghtSerif-Medium.woff2", "weight": "400 600", "style": "normal"},
+  {"family": "Nyght Serif Medium", "file": "NyghtSerif-MediumItalic.woff2", "weight": "400 600", "style": "italic"},
+  {"family": "Nyght Serif Bold", "file": "NyghtSerif-Bold.woff2", "weight": "700 800", "style": "normal"},
+  {"family": "Nyght Serif Bold", "file": "NyghtSerif-BoldItalic.woff2", "weight": "700 800", "style": "italic"},
 ]
