@@ -570,10 +570,12 @@ html.rosin .CreditsModal__description > * + * {
   margin-top: -34px;
 }
 
-.rosin-fy-content {
+#rosin-foryou .rosin-fy-content {
   padding-block: 100px;
 }
-
-.rosin-fy-content {
+#rosin-foryou .rosin-fy-content {
   max-width: 100%;
+}
+#rosin-foryou .rosin-fy-card:hover .rosin-fy-art {
+  transform: translateY(4px);
 }
