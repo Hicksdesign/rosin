@@ -533,10 +533,19 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     list.prepend(tab);
     markTab();
   };
+  // Qobuz's own highlight is hidden with inline !important styles rather
+  // than a class, because inline beats every stylesheet: a theme's rule for
+  // the current tab (custom.css's .ui-block-nav-item.cursor-default, say)
+  // would otherwise outrank it and keep Library highlighted under Home.
+  const HIDDEN_HIGHLIGHT = ['background-color', 'outline-color'];
   const markTab = () => {
-    $(`[${TAB_ATTRIBUTE}]`)?.classList.toggle('rosin-home-tab-active', active);
+    tab?.classList.toggle('rosin-home-tab-active', active);
     $$(S.navItem).forEach((item) => {
-      if (!item.hasAttribute(TAB_ATTRIBUTE)) item.classList.toggle('rosin-home-tab-inactive', active);
+      if (item === tab) return;
+      for (const property of HIDDEN_HIGHLIGHT) {
+        if (active) item.style.setProperty(property, 'transparent', 'important');
+        else item.style.removeProperty(property);
+      }
     });
   };
 
@@ -610,9 +619,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     @keyframes rosin-home-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
     .rosin-home-tab-active { background: color-mix(in srgb, currentColor 9%, transparent) !important; outline-color: color-mix(in srgb, currentColor 14%, transparent) !important; }
-    .rosin-home-tab-active a, .rosin-home-tab-active span { white-space: nowrap; }
-    .rosin-home-tab-inactive { background-color: transparent !important; outline-color: transparent !important; }
-  `;
+    .rosin-home-tab-active a, .rosin-home-tab-active span { white-space: nowrap; }  `;
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = CSS;
