@@ -1,8 +1,8 @@
 # Rosin
 
 A personal macOS menubar companion for the **Qobuz desktop app** (Electron). It
-patches Qobuz to load a script that adds custom CSS/fonts and keyboard shortcuts
-and reports the current track, keeps that patch in place across Qobuz updates,
+patches Qobuz to load a script that adds custom CSS/fonts, keyboard shortcuts
+and a For You page, and reports the current track, keeps that patch in place across Qobuz updates,
 and shows the track and playback controls in the menubar. Not for distribution.
 
 It used to wrap the Qobuz web player in a `WKWebView`; that version is on the
@@ -31,7 +31,7 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 | File | Role |
 |---|---|
 | `Sources/AppDelegate.swift` | Entry point; installs support files, starts the patcher, bridge and menubar item |
-| `Sources/SupportFiles.swift` | Copies `loader.js` and writes `config.json` into `~/Library/Application Support/Rosin/` |
+| `Sources/SupportFiles.swift` | Copies `loader.js` and `foryou.js` and writes `config.json` into `~/Library/Application Support/Rosin/` |
 | `Sources/Patcher.swift` | Adds/removes the loader `<script>` in each Qobuz app's `app.html` and Rosin's icon for Qobuz; re-patches after updates; restarts Qobuz |
 | `Sources/QobuzBridge.swift` | Unix-socket client for each running loader; `NowPlaying` model; posts `nowPlayingDidChange` |
 | `Sources/MediaKeys.swift` | Now Playing info and media keys (`MPRemoteCommandCenter`), forwarded to the bridge |
@@ -43,7 +43,8 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
 | `Sources/AccentPickerView.swift` | The Finder-style row of accent colour dots in the menu |
 | `Sources/PlaybackControlsView.swift` | The menu's row of previous / play-pause / next icons |
 | `Scripts/release.sh` | After exporting a notarized build: checks it, zips it into `~/Herd/rosin/releases/`, runs `generate_appcast`, lists what to upload |
-| `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, accent variables, full-size immersive cover, state reporting, commands, shortcuts |
+| `Resources/loader.js` | Runs inside Qobuz: CSS/font injection with live reload, accent variables, full-size immersive cover, state reporting, commands, shortcuts; Qobuz's Redux store and API for For You |
+| `Resources/foryou.js` | The For You tab and recommendations page. Adapted from Qobuzify's "Picks for you" (MIT; licence in the file's header) |
 | `Resources/Rosin.icon` | Rosin's app icon (Icon Composer; `ASSETCATALOG_COMPILER_APPICON_NAME: Rosin`) |
 | `Resources/Qobuz.icon` | The icon Patcher gives Qobuz. Not a resource: the Compile Qobuz Icon build phase runs `actool` on it into `Resources/QobuzIcon/Assets.car` |
 | `Resources/Assets.xcassets` | `MenuBar`: the menubar icon (template PDF) shown when there's no cover |
@@ -103,6 +104,20 @@ Not sandboxed — see the comment in `Resources/Rosin.entitlements` for why.
   Theme Default clears it, so `custom.css` applies. Only with Use Custom Theme
   on. Clicks keep the menu open and send `setAccent`, which only sets the
   variables, so the colour changes straight away.
+- **For You** (menu setting Show For You, on by default, `forYou` in
+  `config.json`; toggling sends `reloadForYou`): a tab first in the nav bar
+  that opens a recommendations page from your favourites and listening. The
+  page is an overlay on `.ui-layout--root--scroll-main`, not a route, so it
+  closes on any navigation or a click on another tab, the logo or search.
+  Data comes from Qobuz's API (`www.qobuz.com/api.json/0.2/`) with the app's
+  own token from the Redux store (found through React's fiber tree from
+  `#root`) and the desktop app ID `304027809`; a token only works with the ID
+  it was issued for. Nothing else is contacted. Play buttons navigate (a
+  `@@router/CALL_HISTORY_METHOD` push) and click the page's own Play.
+  Recently played tracks and opened artists and playlists are kept in
+  `localStorage` (`rosin.forYou.*`). Qobuzify's Last.fm row (via its own
+  server) and generated mixes (which create and delete playlists in your
+  library) were left out.
 - **Immersive cover:** Qobuz uses the 600px `release.image.large`; loader.js
   layers the CDN's `_max.jpg` (the full-size master, e.g. 3000px) over it.
   There's no size in between (`_1200` 404s); `_org` is the raw upload.
@@ -142,6 +157,9 @@ Done:
 To verify:
 
 - The `playing` state on a Connect output; Open Immersive View on Play.
+- For You: the tab, the page's layout in light and dark, Play on cards and the
+  top pick, and the Show For You toggle. The store, token, API calls and
+  selectors were checked live in Qobuz 8.3.0-b028; the page itself wasn't seen.
 - The accent picker in the menu (the inline variables were tested live; the
   menu view, and changes reaching Qobuz while the menu is open, weren't).
 - Re-patching after a real Qobuz update.

@@ -30,6 +30,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     private let playbackControls = PlaybackControlsView()
     private let immersiveItem = NSMenuItem()
     private lazy var trackInfoItem = actionItem("Show Track Information", #selector(toggleTrackInfo))
+    private lazy var forYouItem = actionItem("Show For You", #selector(toggleForYou))
     private let themeItem = NSMenuItem()
     private lazy var loginItem = actionItem("Launch at Login", #selector(toggleLaunchAtLogin))
     private lazy var updateItem = actionItem("Check for Updates…", #selector(checkForUpdates))
@@ -94,6 +95,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         immersiveItem.action = #selector(toggleOpenImmersiveOnPlay)
         immersiveItem.target = self
         menu.addItem(immersiveItem)
+        menu.addItem(forYouItem)
         themeItem.title = Self.themeTitle
         themeItem.action = #selector(toggleTheme)
         themeItem.target = self
@@ -128,6 +130,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     func menuNeedsUpdate(_ menu: NSMenu) {
         trackInfoItem.state = showsTrackInfo ? .on : .off
         immersiveItem.state = bridge.opensImmersiveOnPlay ? .on : .off
+        forYouItem.state = SupportFiles.forYouEnabled ? .on : .off
         themeItem.state = SupportFiles.themeEnabled ? .on : .off
         accentPicker.accent = SupportFiles.accent
         accentPicker.isEnabled = SupportFiles.themeEnabled
@@ -295,6 +298,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
 
     @objc private func toggleOpenImmersiveOnPlay() {
         bridge.opensImmersiveOnPlay.toggle()
+    }
+
+    /// Like the theme: saved in config.json, and reloadForYou makes each
+    /// running Qobuz re-read it and add or remove the tab.
+    @objc private func toggleForYou() {
+        SupportFiles.forYouEnabled.toggle()
+        bridge.callAll("reloadForYou")
     }
 
     /// Saving the setting rewrites config.json; reloadStyles makes each

@@ -11,7 +11,9 @@
 //    unless the companion's Use Custom Theme setting is off;
 //  - reports the current track to the companion over a Unix socket and takes
 //    commands back (newline-delimited JSON both ways);
-//  - adds keyboard shortcuts (see SHORTCUTS).
+//  - adds keyboard shortcuts (see SHORTCUTS);
+//  - loads For You (foryou.js), a recommendations page, unless the
+//    companion's Show For You setting is off.
 //
 // window.Rosin exposes state(), selectors and the commands for debugging.
 
@@ -65,6 +67,22 @@
 
     // The older stylesheet, which hard-codes the accent colours (see ACCENTS).
     legacyStylesheet: 'link[href*="legacy.css"]',
+
+    // For You (foryou.js). Its tab goes first in the nav bar's list; its page
+    // covers the main scroll area, placed in the layout root.
+    navItems: '.NavBar__items',
+    navItem: '.NavBar__items .ui-block-nav-item',
+    navBrand: '.NavBar__brand',
+    searchBar: '.SearchBar',
+    layoutRoot: '.ui-layout--root',
+    mainScroll: '.ui-layout--root--scroll-main',
+    // The big Play in an album or playlist header ("play-arrow" turns to
+    // "pause" while it plays), and a track row's play control in its number cell.
+    headerPlayButton: '.PageHeader__actions .ButtonRoundPrimary--large.icon-play-arrow',
+    trackRow: '.ListItem',
+    trackRowTitle: '.ListItem__title',
+    trackRowNumber: '.ListItem__numberText',
+    trackRowPlay: '.ListItem__player.icon-play-arrow',
   };
 
   // ---------------------------------------------------------------------------
@@ -263,6 +281,76 @@
   watchCSS();
 
   // ---------------------------------------------------------------------------
+  // Qobuz's Redux store and API, for For You, which needs your favourites and
+  // its own navigation. Everything else here reads the DOM.
+  //
+  // The store is found by walking React's fiber tree from #root to the
+  // Provider that holds it. Qobuz uses the legacy ReactDOM.render, so the
+  // root fiber is _reactRootContainer._internalRoot.current. Only once React
+  // has mounted; until then this returns null and is tried again.
+  //
+  // API calls use the app's own login token, from the store, with the desktop
+  // app's ID: a token only works with the app ID it was issued for.
+  // ---------------------------------------------------------------------------
+  let store = null;
+  const qobuzStore = () => {
+    if (store) return store;
+    const stack = [document.getElementById('root')?._reactRootContainer?._internalRoot?.current];
+    const seen = new Set();
+    while (stack.length && seen.size < 80000) {
+      const fiber = stack.pop();
+      if (!fiber || seen.has(fiber)) continue;
+      seen.add(fiber);
+      const candidate = fiber.memoizedProps?.store;
+      if (typeof candidate?.getState === 'function' && typeof candidate.subscribe === 'function') return (store = candidate);
+      stack.push(fiber.child, fiber.sibling);
+    }
+    return null;
+  };
+
+  const QOBUZ_APP_ID = '304027809';
+  const API_TIMEOUT = 15000;
+  const qobuzAPI = async (method) => {
+    const token = qobuzStore()?.getState().user?.token;
+    if (!token) throw new Error('not signed in');
+    const response = await fetch(`https://www.qobuz.com/api.json/0.2/${method}`, {
+      headers: { 'X-App-Id': QOBUZ_APP_ID, 'X-User-Auth-Token': token },
+      signal: AbortSignal.timeout(API_TIMEOUT),
+    });
+    if (!response.ok) throw new Error(`${method.split('?')[0]}: ${response.status}`);
+    return response.json();
+  };
+
+  // Qobuz's router is connected-react-router, so this is the same push its
+  // own links do.
+  const navigate = (pathname) => {
+    qobuzStore()?.dispatch({ type: '@@router/CALL_HISTORY_METHOD', payload: { method: 'push', args: [pathname] } });
+  };
+
+  // ---------------------------------------------------------------------------
+  // For You (foryou.js): the companion's Show For You setting, `forYou` in
+  // config.json. Copied next to this file by the companion, like loader.js.
+  // ---------------------------------------------------------------------------
+  let removeForYou = null;
+  const applyForYou = () => {
+    const on = config.forYou !== false;
+    if (on === !!removeForYou) return;
+    if (!on) { removeForYou(); removeForYou = null; return; }
+    try {
+      removeForYou = require(path.join(SUPPORT_DIR, 'foryou.js'))({
+        selectors: SELECTORS, store: qobuzStore, api: qobuzAPI, navigate, log,
+      });
+    } catch (e) {
+      log('foryou.js failed to load:', e.message);
+    }
+  };
+  const reloadForYou = () => {
+    config = readConfig();
+    applyForYou();
+  };
+  applyForYou();
+
+  // ---------------------------------------------------------------------------
   // Reading state
   // ---------------------------------------------------------------------------
   const isPlaying = () => !!($(SELECTORS.pauseButton) || $(SELECTORS.loadingButton));
@@ -356,7 +444,7 @@
   };
 
   const commands = {
-    togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles,
+    togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles, reloadForYou,
     reload: () => location.reload(),
     setOpenImmersiveOnPlay: (on) => { openImmersiveOnPlay = !!on; },
     setAccent,

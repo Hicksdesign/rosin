@@ -4,7 +4,9 @@ import Foundation
 /// ~/Library/Application Support/Rosin/:
 ///
 ///   loader.js     copied from this app on every launch (the patch require()s it)
-///   config.json   where loader.js finds custom.css and the fonts, whether to apply them, and the accent
+///   foryou.js     the For You page, copied likewise; loader.js require()s it
+///   config.json   where loader.js finds custom.css and the fonts, whether to apply them, the accent,
+///                 and whether to show For You
 ///   sockets/      one Unix socket per running Qobuz app (created by loader.js)
 ///
 /// custom.css and Fonts/ are looked up in this order (first match wins):
@@ -65,6 +67,16 @@ enum SupportFiles {
         }
     }
 
+    /// Whether loader.js adds the For You tab and page. On by default.
+    private static let forYouEnabledKey = "forYouEnabled"
+    static var forYouEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: forYouEnabledKey) as? Bool ?? true }
+        set {
+            UserDefaults.standard.set(newValue, forKey: forYouEnabledKey)
+            writeConfig()
+        }
+    }
+
     // MARK: Install
 
     private struct Config: Encodable {
@@ -72,23 +84,29 @@ enum SupportFiles {
         var fonts: String?
         var theme: Bool
         var accent: String?
+        var forYou: Bool
     }
 
-    /// Copies loader.js and writes config.json. Run at launch and before
+    /// The scripts copied into the support folder for Qobuz to load.
+    private static let scripts = ["loader.js", "foryou.js"]
+
+    /// Copies the scripts and writes config.json. Run at launch and before
     /// reloading Qobuz, so the page always gets the current loader.
     static func install() {
         let fm = FileManager.default
         do {
             try fm.createDirectory(at: socketsDirectory, withIntermediateDirectories: true)
 
-            // loader.js is code, not a user override, so it isn't read from 1.
-            guard let loader = firstExisting("loader.js", in: [sourceResourcesDirectory, bundleDirectory]) else {
-                NSLog("[Rosin] loader.js not found")
-                return
+            // The scripts are code, not user overrides, so they aren't read from 1.
+            for script in scripts {
+                guard let source = firstExisting(script, in: [sourceResourcesDirectory, bundleDirectory]) else {
+                    NSLog("[Rosin] \(script) not found")
+                    continue
+                }
+                let destination = directory.appendingPathComponent(script)
+                try? fm.removeItem(at: destination)
+                try fm.copyItem(at: source, to: destination)
             }
-            let loaderDestination = directory.appendingPathComponent("loader.js")
-            try? fm.removeItem(at: loaderDestination)
-            try fm.copyItem(at: loader, to: loaderDestination)
 
             writeConfig()
         } catch {
@@ -103,7 +121,8 @@ enum SupportFiles {
             css: firstExisting("custom.css", in: dirs)?.path,
             fonts: firstExisting("Fonts/fonts.json", in: dirs)?.deletingLastPathComponent().path,
             theme: themeEnabled,
-            accent: accent
+            accent: accent,
+            forYou: forYouEnabled
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
