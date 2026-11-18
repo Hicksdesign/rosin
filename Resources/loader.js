@@ -12,8 +12,9 @@
 //  - reports the current track to the companion over a Unix socket and takes
 //    commands back (newline-delimited JSON both ways);
 //  - adds keyboard shortcuts (see SHORTCUTS);
-//  - loads Home (homepage.js), a recommendations page, unless the
-//    companion's Show Home setting is off.
+//  - loads Home (homepage.js), a recommendations page, and Better Search
+//    (search.js), results as you type, unless the companion's Show Home or
+//    Use Better Search setting is off (see FEATURES).
 //
 // window.Rosin exposes state(), selectors and the commands for debugging.
 
@@ -68,16 +69,20 @@
     // The older stylesheet, which hard-codes the accent colours (see ACCENTS).
     legacyStylesheet: 'link[href*="legacy.css"]',
 
-    // Home (homepage.js). Its tab goes first in the nav bar's list; its page
-    // covers the main scroll area, placed in the layout root.
+    // Home (homepage.js) and Better Search (search.js). Home's tab goes first
+    // in the nav bar's list; both pages cover the main scroll area, placed in
+    // the layout root. Search hooks the search bar's input, and its clear
+    // (×) button, which empties the field without an input event.
     navItems: '.NavBar__items',
     navItem: '.NavBar__items .ui-block-nav-item',
     navBrand: '.NavBar__brand',
     searchBar: '.SearchBar',
+    searchReset: '.SearchBar__reset',
     layoutRoot: '.ui-layout--root',
     mainScroll: '.ui-layout--root--scroll-main',
     // The big Play in an album or playlist header ("play-arrow" turns to
-    // "pause" while it plays), and a track row's play control in its number cell.
+    // "pause" while it plays), and a track row's play control in its number
+    // cell. Home and Search play through these (playAt, playTrackAt).
     headerPlayButton: '.PageHeader__actions .ButtonRoundPrimary--large.icon-play-arrow',
     trackRow: '.ListItem',
     trackRowTitle: '.ListItem__title',
@@ -281,8 +286,9 @@
   watchCSS();
 
   // ---------------------------------------------------------------------------
-  // Qobuz's Redux store and API, for Home, which needs your favourites and
-  // its own navigation. Everything else here reads the DOM.
+  // Qobuz's Redux store and API, for Home and Better Search, which need your
+  // favourites, the catalogue and its own navigation. Everything else here
+  // reads the DOM.
   //
   // The store is found by walking React's fiber tree from #root to the
   // Provider that holds it. Qobuz uses the legacy ReactDOM.render, so the
@@ -328,27 +334,99 @@
   };
 
   // ---------------------------------------------------------------------------
-  // Home (homepage.js): the companion's Show Home setting, `homePage` in
-  // config.json. Copied next to this file by the companion, like loader.js.
+  // Playing something from Home or Search. The page has no play API, so this
+  // opens the album or playlist and clicks its header's Play once it's
+  // showing. Only the destination's header button counts: the previous page
+  // can still be in the DOM mid-transition.
   // ---------------------------------------------------------------------------
-  let removeHomePage = null;
-  const applyHomePage = () => {
-    const on = config.homePage !== false;
-    if (on === !!removeHomePage) return;
-    if (!on) { removeHomePage(); removeHomePage = null; return; }
-    try {
-      removeHomePage = require(path.join(SUPPORT_DIR, 'homepage.js'))({
-        selectors: SELECTORS, store: qobuzStore, api: qobuzAPI, navigate, log,
-      });
-    } catch (e) {
-      log('homepage.js failed to load:', e.message);
+  const currentPath = () => qobuzStore()?.getState().router?.location?.pathname || '';
+  const $$ = (sel) => { try { return [...document.querySelectorAll(sel)]; } catch (_) { return []; } };
+  const visibleHeaderPlay = () => $$(SELECTORS.headerPlayButton).find(isVisible);
+
+  let playTimer = null;
+  const whenOn = (pathname, attempt) => {
+    clearInterval(playTimer);
+    let tries = 0;
+    playTimer = setInterval(() => {
+      tries++;
+      if ((currentPath().includes(pathname) && attempt(tries)) || tries > 40) clearInterval(playTimer);
+    }, 150);
+  };
+  const playAt = (pathname) => {
+    navigate(pathname);
+    whenOn(pathname, () => {
+      const button = visibleHeaderPlay();
+      button?.click();
+      return !!button;
+    });
+  };
+
+  // One track, not the album's first: open the album and click the matching
+  // row's play control. Matched on title, ties broken by track number; after
+  // ~2s with no match, plays the album instead.
+  const normalise = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[‘’'`]/g, '').replace(/\s+/g, ' ').trim();
+  const matchingRow = (title, number) => {
+    const want = normalise(title);
+    let best = null, bestScore = -1;
+    for (const row of $$(SELECTORS.trackRow)) {
+      if (!row.querySelector(SELECTORS.trackRowPlay)) continue;
+      const have = normalise(row.querySelector(SELECTORS.trackRowTitle)?.textContent);
+      let score = 0;
+      if (have && have === want) score = 100;
+      else if (have && want && (have.startsWith(want) || want.startsWith(have))) score = 70;
+      else if (have && want && (have.includes(want) || want.includes(have))) score = 40;
+      if (number && parseInt(row.querySelector(SELECTORS.trackRowNumber)?.textContent, 10) === number) score += 15;
+      if (score > bestScore) { bestScore = score; best = row; }
+    }
+    return bestScore >= 40 ? best : null;
+  };
+  const playTrackAt = (albumId, title, number) => {
+    const pathname = `/album/${albumId}`;
+    navigate(pathname);
+    whenOn(pathname, (tries) => {
+      const control = matchingRow(title, number)?.querySelector(SELECTORS.trackRowPlay);
+      if (control) { control.click(); return true; }
+      if (tries > 12) {
+        const button = visibleHeaderPlay();
+        button?.click();
+        return !!button;
+      }
+      return false;
+    });
+  };
+
+  // ---------------------------------------------------------------------------
+  // Page features, each a file copied next to this one by the companion and
+  // turned on and off by one of its settings in config.json:
+  //   homepage.js  Home, a recommendations page (Show Home, `homePage`)
+  //   search.js    Better Search, results as you type (Use Better Search,
+  //                `betterSearch`)
+  // Each is called with what it needs and returns { remove }, plus, for
+  // Search, close() for Escape. Both are on unless set to false.
+  // ---------------------------------------------------------------------------
+  const FEATURES = { homePage: 'homepage.js', betterSearch: 'search.js' };
+  const featureContext = {
+    selectors: SELECTORS, store: qobuzStore, api: qobuzAPI, navigate, playAt, playTrackAt, log,
+  };
+  const features = {};
+  const applyFeatures = () => {
+    for (const [key, file] of Object.entries(FEATURES)) {
+      const on = config[key] !== false;
+      if (on === !!features[key]) continue;
+      if (!on) { features[key].remove(); delete features[key]; continue; }
+      try {
+        features[key] = require(path.join(SUPPORT_DIR, file))(featureContext);
+      } catch (e) {
+        log(`${file} failed to load:`, e.message);
+      }
     }
   };
-  const reloadHomePage = () => {
+  const reloadFeatures = () => {
     config = readConfig();
-    applyHomePage();
+    applyFeatures();
   };
-  applyHomePage();
+  applyFeatures();
 
   // ---------------------------------------------------------------------------
   // Reading state
@@ -425,6 +503,8 @@
   // Returns false if the immersive view wasn't open, so Escape can carry on to
   // Qobuz's own handlers.
   const closeImmersive = () => isVisible($(SELECTORS.immersiveRoot)) && click(SELECTORS.immersiveClose);
+  // The same for Better Search's results.
+  const closeSearch = () => features.betterSearch?.close() ?? false;
 
   const focusInput = (input) => {
     input.focus();
@@ -444,7 +524,7 @@
   };
 
   const commands = {
-    togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles, reloadHomePage,
+    togglePlay, next, previous, goBack, goForward, closeImmersive, openSearch, reloadStyles, reloadFeatures,
     reload: () => location.reload(),
     setOpenImmersiveOnPlay: (on) => { openImmersiveOnPlay = !!on; },
     setAccent,
@@ -465,7 +545,8 @@
     { key: 'ArrowLeft', cmd: true, editing: false, run: previous },
     { key: '[', cmd: true, editing: false, run: goBack },
     { key: ']', cmd: true, editing: false, run: goForward },
-    { key: 'Escape', run: closeImmersive },
+    // The immersive view first, as it sits over everything, then Search.
+    { key: 'Escape', run: () => closeImmersive() || closeSearch() },
   ];
   window.addEventListener('keydown', (event) => {
     if (event.altKey || event.ctrlKey || event.shiftKey) return;

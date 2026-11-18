@@ -5,8 +5,9 @@ import Foundation
 ///
 ///   loader.js     copied from this app on every launch (the patch require()s it)
 ///   homepage.js   the Home page, copied likewise; loader.js require()s it
+///   search.js     Better Search, copied and loaded likewise
 ///   config.json   where loader.js finds custom.css and the fonts, whether to apply them, the accent,
-///                 and whether to show Home
+///                 and whether to show Home and use Better Search
 ///   sockets/      one Unix socket per running Qobuz app (created by loader.js)
 ///
 /// custom.css and Fonts/ are looked up in this order (first match wins):
@@ -86,6 +87,17 @@ enum SupportFiles {
         }
     }
 
+    /// Whether loader.js replaces Qobuz's search results with Better Search's
+    /// as you type. On by default.
+    private static let betterSearchEnabledKey = "betterSearchEnabled"
+    static var betterSearchEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: betterSearchEnabledKey) as? Bool ?? true }
+        set {
+            UserDefaults.standard.set(newValue, forKey: betterSearchEnabledKey)
+            writeConfig()
+        }
+    }
+
     // MARK: Install
 
     private struct Config: Encodable {
@@ -94,10 +106,11 @@ enum SupportFiles {
         var theme: Bool
         var accent: String?
         var homePage: Bool
+        var betterSearch: Bool
     }
 
     /// The scripts copied into the support folder for Qobuz to load.
-    private static let scripts = ["loader.js", "homepage.js"]
+    private static let scripts = ["loader.js", "homepage.js", "search.js"]
 
     /// Scripts earlier versions copied there, deleted on install.
     /// foryou.js is homepage.js before the rename.
@@ -138,7 +151,8 @@ enum SupportFiles {
             fonts: firstExisting("Fonts/fonts.json", in: dirs)?.deletingLastPathComponent().path,
             theme: themeEnabled,
             accent: accent,
-            homePage: homePageEnabled
+            homePage: homePageEnabled,
+            betterSearch: betterSearchEnabled
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]

@@ -31,6 +31,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
     private let immersiveItem = NSMenuItem()
     private lazy var trackInfoItem = actionItem("Show Track Information", #selector(toggleTrackInfo))
     private lazy var homePageItem = actionItem("Show Home", #selector(toggleHomePage))
+    private lazy var betterSearchItem = actionItem("Use Better Search", #selector(toggleBetterSearch))
     private let themeItem = NSMenuItem()
     private lazy var loginItem = actionItem("Launch at Login", #selector(toggleLaunchAtLogin))
     private lazy var updateItem = actionItem("Check for Updates…", #selector(checkForUpdates))
@@ -96,6 +97,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         immersiveItem.target = self
         menu.addItem(immersiveItem)
         menu.addItem(homePageItem)
+        menu.addItem(betterSearchItem)
         themeItem.title = Self.themeTitle
         themeItem.action = #selector(toggleTheme)
         themeItem.target = self
@@ -131,6 +133,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         trackInfoItem.state = showsTrackInfo ? .on : .off
         immersiveItem.state = bridge.opensImmersiveOnPlay ? .on : .off
         homePageItem.state = SupportFiles.homePageEnabled ? .on : .off
+        betterSearchItem.state = SupportFiles.betterSearchEnabled ? .on : .off
         themeItem.state = SupportFiles.themeEnabled ? .on : .off
         accentPicker.accent = SupportFiles.accent
         accentPicker.isEnabled = SupportFiles.themeEnabled
@@ -300,11 +303,17 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSMenuItemValidation
         bridge.opensImmersiveOnPlay.toggle()
     }
 
-    /// Like the theme: saved in config.json, and reloadHomePage makes each
+    /// Like the theme: saved in config.json, and reloadFeatures makes each
     /// running Qobuz re-read it and add or remove the tab.
     @objc private func toggleHomePage() {
         SupportFiles.homePageEnabled.toggle()
-        bridge.callAll("reloadHomePage")
+        bridge.callAll("reloadFeatures")
+    }
+
+    /// The same, for Better Search's results.
+    @objc private func toggleBetterSearch() {
+        SupportFiles.betterSearchEnabled.toggle()
+        bridge.callAll("reloadFeatures")
     }
 
     /// Saving the setting rewrites config.json; reloadStyles makes each

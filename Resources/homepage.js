@@ -51,9 +51,9 @@
 
 /* eslint-env browser */
 
-// Installs the Home page and returns a function that removes it again. All state is
-// inside, so it can be installed again after a cleanup.
-module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
+// Installs the Home page and returns { remove } to take it out again. All
+// state is inside, so it can be installed again after a cleanup.
+module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, playAt, playTrackAt, log }) => {
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -205,66 +205,13 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   };
 
   // ---------------------------------------------------------------------------
-  // Playing. Opens the album or playlist, then clicks its header's Play once
-  // it's showing. Only the destination's header button counts: the previous
-  // page can still be in the DOM mid-transition.
+  // Opening and playing. loader.js's playAt and playTrackAt open the album or
+  // playlist and click its own Play, since the page has no play API.
   // ---------------------------------------------------------------------------
   const pathname = () => store()?.getState().router?.location?.pathname || '';
-  const visibleHeaderPlay = () => $$(S.headerPlayButton).find((b) => b.getClientRects().length > 0);
-
-  let playTimer = null;
-  const whenOn = (path, attempt) => {
-    clearInterval(playTimer);
-    let tries = 0;
-    playTimer = setInterval(() => {
-      tries++;
-      if ((pathname().includes(path) && attempt(tries)) || tries > 40) clearInterval(playTimer);
-    }, 150);
-  };
   const go = (path) => { close(); navigate(path); };
-  const play = (path) => {
-    go(path);
-    whenOn(path, () => {
-      const button = visibleHeaderPlay();
-      button?.click();
-      return !!button;
-    });
-  };
-
-  // One track, not the album's first: open the album and click the matching
-  // row's play control. Matched on title, ties broken by track number; after
-  // ~2s with no match, plays the album instead.
-  const normalise = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase().replace(/[‘’'`]/g, '').replace(/\s+/g, ' ').trim();
-  const matchingRow = (title, number) => {
-    const want = normalise(title);
-    let best = null, bestScore = -1;
-    for (const row of $$(S.trackRow)) {
-      if (!row.querySelector(S.trackRowPlay)) continue;
-      const have = normalise(row.querySelector(S.trackRowTitle)?.textContent);
-      let score = 0;
-      if (have && have === want) score = 100;
-      else if (have && want && (have.startsWith(want) || want.startsWith(have))) score = 70;
-      else if (have && want && (have.includes(want) || want.includes(have))) score = 40;
-      if (number && parseInt(row.querySelector(S.trackRowNumber)?.textContent, 10) === number) score += 15;
-      if (score > bestScore) { bestScore = score; best = row; }
-    }
-    return bestScore >= 40 ? best : null;
-  };
-  const playTrack = (albumId, title, number) => {
-    const path = `/album/${albumId}`;
-    go(path);
-    whenOn(path, (tries) => {
-      const control = matchingRow(title, number)?.querySelector(S.trackRowPlay);
-      if (control) { control.click(); return true; }
-      if (tries > 12) {
-        const button = visibleHeaderPlay();
-        button?.click();
-        return !!button;
-      }
-      return false;
-    });
-  };
+  const play = (path) => { close(); playAt(path); };
+  const playTrack = (albumId, title, number) => { close(); playTrackAt(albumId, title, number); };
 
   // ---------------------------------------------------------------------------
   // Cards and rows
@@ -668,10 +615,9 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
   }, 500);
   document.addEventListener('click', onClick, true);
 
-  return () => {
+  const remove = () => {
     restore.disconnect();
     clearInterval(tick);
-    clearInterval(playTimer);
     unsubscribe?.();
     document.removeEventListener('click', onClick, true);
     active = false;
@@ -680,4 +626,5 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, log }) => {
     page?.remove();
     style.remove();
   };
+  return { remove };
 };
