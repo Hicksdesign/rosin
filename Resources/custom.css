@@ -29,7 +29,6 @@ html.rosin *:not([class*=icon-]):not([class*=pct]) .StoryHeading__title {
   line-height: 1.1;
   font-variation-settings: "opsz" 32;
   text-wrap: balance !important;
-  overflow: unset;
 }
 html.rosin *:not([class*=icon-]):not([class*=pct]) .BigStoryCard__title,
 html.rosin *:not([class*=icon-]):not([class*=pct]) .StoryCard__title,
@@ -502,8 +501,7 @@ img[src*=hires] {
 html.rosin .Magazine {
   padding: 0px 20px 100px 20px;
 }
-html.rosin .BigStoryCard__title,
-html.rosin .StoryCard__title {
+html.rosin .BigStoryCard__title {
   -webkit-line-clamp: 3;
 }
 html.rosin .StoryHeading__image {
@@ -511,6 +509,10 @@ html.rosin .StoryHeading__image {
 }
 html.rosin .Story {
   margin-block-start: -56px;
+}
+html.rosin .StoryCard__credits {
+  height: 1rlh;
+  font-size: 16px;
 }
 html.rosin .StoryCredits__credit,
 html.rosin .StoryCredits__excerpt {

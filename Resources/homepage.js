@@ -532,9 +532,9 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, playAt, playTr
     .rosin-home-pick { display: flex; align-items: center; gap: 26px; margin: 20px 0 6px; padding: 22px; border-radius: 18px; background: var(--rosin-home-fill); border: 1px solid var(--rosin-home-line); }
     .rosin-home-pick-art { position: relative; flex: none; width: 168px; height: 168px; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .6); }
     .rosin-home-pick-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .rosin-home-pick-info { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+    .rosin-home-pick-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     .rosin-home-pick-kind { font-size: 13px; font-weight: 600; color: var(--rosin-home-text-secondary); }
-    .rosin-home-pick-title { font-size: 34px; font-weight: 800; line-height: 1.08; color: var(--rosin-home-text); text-decoration: none; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .rosin-home-pick-title { font-size: 34px; font-weight: 800; line-height: 1.08; color: var(--rosin-home-text); text-decoration: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .rosin-home-pick-title:hover { text-decoration: underline; }
     .rosin-home-pick-subtitle { font-size: 14px; color: var(--rosin-home-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rosin-home-pick-play { margin-top: 8px; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 26px; background: var(--rosin-home-accent); color: var(--rosin-home-on-accent); font: inherit; font-size: 14px; font-weight: 700; padding: 11px 24px; cursor: pointer; }
@@ -556,7 +556,7 @@ module.exports = ({ selectors: S, store, api: qobuzAPI, navigate, playAt, playTr
     .rosin-home-card--round .rosin-home-art { border-radius: 50%; }
     .rosin-home-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .rosin-home-title { margin-top: 10px; font-size: 13.5px; font-weight: 700; color: var(--rosin-home-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .rosin-home-subtitle { margin-top: 2px; font-size: 12px; color: var(--rosin-home-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rosin-home-subtitle { font-size: 12px; color: var(--rosin-home-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rosin-home-card--round .rosin-home-title, .rosin-home-card--round .rosin-home-subtitle { text-align: center; }
     .rosin-home-badge { position: absolute; top: 8px; left: 8px; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; color: var(--rosin-home-on-accent); background: var(--rosin-home-accent); }
     .rosin-home-play { position: absolute; right: 9px; bottom: 9px; width: 44px; height: 44px; border: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--rosin-home-accent); color: var(--rosin-home-on-accent); cursor: pointer; opacity: 0; transform: translateY(8px) scale(.85); transition: opacity .15s, transform .15s; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
